@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#include "VulkanApp.h"
+#include "renderer/VulkanApp.h"
 
 
 f32 Application::Time = 0.f;
@@ -12,12 +12,15 @@ f32 Application::DeltaTime = 0.f;
 
 void Application::initWindow(i32 width, i32 height, const char* title) {
     glfwInit();
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     m_windowWidth = width;
     m_windowHeight = height;
+
+    glfwSetWindowUserPointer(m_window, this);
+
+    glfwSetFramebufferSizeCallback(m_window, resizeCallback);
 }
 
 void Application::initVulkan() {
@@ -26,6 +29,10 @@ void Application::initVulkan() {
 
     m_vulkanApp = new VulkanApp();
     m_vulkanApp->init(m_window);
+}
+
+void Application::clearVulkan() {
+    m_vulkanApp->clear();
 }
 
 void Application::run() {
@@ -48,5 +55,19 @@ void Application::run() {
         }
 
         m_vulkanApp->drawFrame();
+    }
+}
+
+void Application::resizeCallback(GLFWwindow* window, i32 width, i32 height) {
+    auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    if (app->m_resizeFunc)
+        app->m_resizeFunc(width, height);
+
+    app->m_windowWidth = width;
+    app->m_windowHeight = height;
+
+    if (width != app->m_windowWidth || height != app->m_windowHeight) {
+        app->m_vulkanApp->resize();
     }
 }

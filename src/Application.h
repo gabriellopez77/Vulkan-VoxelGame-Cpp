@@ -12,15 +12,20 @@ public:
 
     void initWindow(i32 width, i32 height, const char* title);
     void initVulkan();
+    void clearVulkan();
     void run();
 
     void setLoopFunc(void (*loopFunc)(float dt)) { m_loopFunc = loopFunc; }
+    void setResizeFunc(void (*resizeFun)(i32 width, i32 height)) {m_resizeFunc = resizeFun; }
 
-private:   
+private:
+    static void resizeCallback(GLFWwindow* window, i32 width, i32 height);
+
     VulkanApp* m_vulkanApp = nullptr;
 
-    // main loop function pointer
+    // functions pointers
     void (*m_loopFunc)(float dt) = nullptr;
+    void (*m_resizeFunc)(i32 width, i32 height) = nullptr;
 
     // glfw window pointer
     GLFWwindow* m_window = nullptr;
