@@ -2,43 +2,43 @@
 
 #include <fstream>
 #include <cassert>
+#include <iostream>
+
+#include <vulkan/vulkan.h>
 
 #include "LogicalDevice.h"
 #include "RenderPass.h"
 #include "SwapChain.h"
 #include "VulkanApp.h"
 #include "../defs.h"
+#include "PipelineSettings.h"
 
 
-void GraphicsPipeline::init(const VulkanApp* app, const char* vertPath, const char* fragPath) {
-    auto vertShaderModule = createShaderModule(readShaderFile(vertPath), app->logicalDevice->get());
-    auto fragShaderModule = createShaderModule(readShaderFile(fragPath), app->logicalDevice->get());
+void render::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& settings) {
+    auto vertShaderModule = createShaderModule(settings.vertPath, app->logicalDevice.get());
+    auto fragShaderModule = createShaderModule(settings.fragPath, app->logicalDevice.get());
 
-    VkPipelineShaderStageCreateInfo shaderStages[2];
-
-    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = vertShaderModule;
-    shaderStages[0].pName = "main";
-    shaderStages[0].pSpecializationInfo = nullptr;
-    shaderStages[0].flags = 0;
-    shaderStages[0].pNext = nullptr;
-
-    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = fragShaderModule;
-    shaderStages[1].pName = "main";
-    shaderStages[1].pSpecializationInfo = nullptr;
-    shaderStages[1].flags = 0;
-    shaderStages[1].pNext = nullptr;
-
+    VkPipelineShaderStageCreateInfo shaderStages[2] = {
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = vertShaderModule,
+            .pName = "main",
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = fragShaderModule,
+            .pName = "main",
+        }
+    };
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+    vertexInputInfo.vertexBindingDescriptionCount = settings.bindingsCount;
+    vertexInputInfo.pVertexBindingDescriptions = settings.bindings;
+    vertexInputInfo.vertexAttributeDescriptionCount = settings.attributesCount;
+    vertexInputInfo.pVertexAttributeDescriptions = settings.attributes;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -96,17 +96,10 @@ void GraphicsPipeline::init(const VulkanApp* app, const char* vertPath, const ch
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
-
-    // dynamic states
-    VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = std::size(dynamicStates);
-    dynamicState.pDynamicStates = dynamicStates;
+    dynamicState.dynamicStateCount = settings.dynamicStatesCount;
+    dynamicState.pDynamicStates = settings.dynamicStates;
 
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -116,7 +109,7 @@ void GraphicsPipeline::init(const VulkanApp* app, const char* vertPath, const ch
     pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-    if (vkCreatePipelineLayout(app->logicalDevice->get(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(app->logicalDevice.get(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
         assert(false && "failed to create pipeline layout!");
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -132,20 +125,24 @@ void GraphicsPipeline::init(const VulkanApp* app, const char* vertPath, const ch
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = app->renderPass->get();
+    pipelineInfo.renderPass = app->renderPass.get();
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    if (vkCreateGraphicsPipelines(app->logicalDevice->get(), nullptr, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(app->logicalDevice.get(), nullptr, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS)
         assert(false && "failed to create graphics pipeline!");
 
     // destroy shaders modules
-    vkDestroyShaderModule(app->logicalDevice->get(), vertShaderModule, nullptr);
-    vkDestroyShaderModule(app->logicalDevice->get(), fragShaderModule, nullptr);
+    vkDestroyShaderModule(app->logicalDevice.get(), vertShaderModule, nullptr);
+    vkDestroyShaderModule(app->logicalDevice.get(), fragShaderModule, nullptr);
 }
 
-std::vector<char> GraphicsPipeline::readShaderFile(const char* filePath) {
+void render::GraphicsPipeline::bind(VkCommandBuffer command) const {
+    vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+}
+
+std::vector<char> render::GraphicsPipeline::readShaderFile(const char* filePath) const {
     // open the file at the end to get the file size
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
@@ -154,7 +151,7 @@ std::vector<char> GraphicsPipeline::readShaderFile(const char* filePath) {
     }
 
     // get file size and allocate a buffer for it
-    u64 fileSize = (u64)file.tellg();
+    u64 fileSize = file.tellg();
     std::vector<char> buffer(fileSize);
 
     // set the file position to the beginning and read the file into the buffer
@@ -166,7 +163,9 @@ std::vector<char> GraphicsPipeline::readShaderFile(const char* filePath) {
     return buffer;
 }
 
-VkShaderModule GraphicsPipeline::createShaderModule(const std::vector<char>& code, VkDevice device) {
+VkShaderModule render::GraphicsPipeline::createShaderModule(const char* path, VkDevice device) const {
+    auto code = readShaderFile(path);
+
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();

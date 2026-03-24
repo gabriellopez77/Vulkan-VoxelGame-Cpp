@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "PhysicalDevice.h"
-#include "RenderUtils.h"
+#include "Utils.h"
 
 
-void LogicalDevice::init(const VulkanApp* app) {
+void render::LogicalDevice::create(const VulkanApp* app) {
     // grab queue family indices
-    auto index = app->findQueueFamilies(app->physicalDevice->get());
+    auto index = app->findQueueFamilies(app->physicalDevice.get());
 
     // create device queue create info
     f32 queuePriority = 1.0f;
@@ -41,11 +41,11 @@ void LogicalDevice::init(const VulkanApp* app) {
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledLayerCount = 0;
-    createInfo.enabledExtensionCount = std::size(renderUtils::deviceExtensions);
-    createInfo.ppEnabledExtensionNames = renderUtils::deviceExtensions;
+    createInfo.enabledExtensionCount = std::size(utils::deviceExtensions);
+    createInfo.ppEnabledExtensionNames = utils::deviceExtensions;
 
     // create the logical device
-    if (vkCreateDevice(app->physicalDevice->get(), &createInfo, nullptr, &m_logicalDevice) != VK_SUCCESS)
+    if (vkCreateDevice(app->physicalDevice.get(), &createInfo, nullptr, &m_logicalDevice) != VK_SUCCESS)
         assert(false && "failed to create logical device!");
 
     // get graphics and present queues

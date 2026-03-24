@@ -2,8 +2,12 @@
 
 #include "defs.h"
 
+
+// fwd
 struct GLFWwindow;
-class VulkanApp;
+namespace render {
+    class VulkanApp;
+}
 
 class Application {
 public:
@@ -21,7 +25,7 @@ public:
 private:
     static void resizeCallback(GLFWwindow* window, i32 width, i32 height);
 
-    VulkanApp* m_vulkanApp = nullptr;
+    render::VulkanApp* m_vulkanApp = nullptr;
 
     // functions pointers
     void (*m_loopFunc)(float dt) = nullptr;

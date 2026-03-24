@@ -2,8 +2,9 @@
 
 #include <vector>
 
+#define SHADERS_FOLDER PROJECT_ROOT_PATH"/assets/shaders/compiled"
 
-namespace renderUtils {
+namespace render::utils {
     constexpr const char* validateLayerNames[] = {
         "VK_LAYER_KHRONOS_validation"
     };

@@ -1,25 +1,30 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "VulkanFwd.h"
 
 #include <vector>
 
 
-//fwd
-class SwapChain;
-class RenderPass;
-class VulkanApp;
 
-class GraphicsPipeline {
-public:
-    void init(const VulkanApp* app, const char* vertPath, const char* fragPath);
+namespace render {
+    //fwd
+    class SwapChain;
+    class RenderPass;
+    class VulkanApp;
+    struct PipelineSettings;
 
-    VkPipeline get() const { return m_graphicsPipeline; }
-    VkPipelineLayout pipelineLayout = nullptr;
+    class GraphicsPipeline {
+    public:
+        void create(const VulkanApp* app, const PipelineSettings& settings);
+        void bind(VkCommandBuffer command) const;
 
-private:
-    std::vector<char> readShaderFile(const char* filePath);
-    VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device);
+        VkPipeline get() const { return m_graphicsPipeline; }
+        VkPipelineLayout pipelineLayout = nullptr;
 
-    VkPipeline m_graphicsPipeline = nullptr;
-};
+    private:
+        std::vector<char> readShaderFile(const char* filePath) const;
+        VkShaderModule createShaderModule(const char* path, VkDevice device) const;
+
+        VkPipeline m_graphicsPipeline = nullptr;
+    };
+}

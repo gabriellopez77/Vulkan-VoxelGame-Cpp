@@ -1,16 +1,18 @@
 #pragma once
 
+#include "VulkanFwd.h"
 
-//fwd
-class VulkanApp;
-typedef struct VkRenderPass_T *VkRenderPass;
+namespace render {
+    //fwd
+    class VulkanApp;
 
-class RenderPass {
-public:
-    void init(const VulkanApp* app);
+    class RenderPass {
+    public:
+        void create(const VulkanApp* app);
 
-    VkRenderPass get() const { return m_renderPass; }
+        VkRenderPass get() const { return m_renderPass; }
 
-private:
-    VkRenderPass m_renderPass = nullptr;
-};
+    private:
+        VkRenderPass m_renderPass = nullptr;
+    };
+}

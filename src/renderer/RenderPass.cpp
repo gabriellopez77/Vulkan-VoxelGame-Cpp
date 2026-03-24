@@ -7,7 +7,7 @@
 #include "VulkanApp.h"
 
 
-void RenderPass::init(const VulkanApp* app) {
+void render::RenderPass::create(const VulkanApp* app) {
     // color attachment
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -18,7 +18,7 @@ void RenderPass::init(const VulkanApp* app) {
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = app->swapChain->swapChainImageFormat;
+    colorAttachment.format = app->swapChain.getImageFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -45,6 +45,6 @@ void RenderPass::init(const VulkanApp* app) {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(app->logicalDevice->get(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS)
+    if (vkCreateRenderPass(app->logicalDevice.get(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS)
         assert(false && "failed to create render pass!");
 }

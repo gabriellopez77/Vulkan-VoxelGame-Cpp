@@ -1,22 +1,26 @@
 #pragma once
 
+#include "VulkanFwd.h"
 
-// fwd
-class VulkanApp;
-class SwapChain;
-typedef struct VkPhysicalDevice_T *VkPhysicalDevice;
 
-class PhysicalDevice {
-public:
-    void init(const VulkanApp* app);
-    bool checkExtensionSupport(VkPhysicalDevice device, const VulkanApp* app) const;
 
-    VkPhysicalDevice get() const { return m_physicalDevice; }
+namespace render {
+    // fwd
+    class VulkanApp;
+    class SwapChain;
+    
+    class PhysicalDevice {
+    public:
+        void create(const VulkanApp* app);
+        bool checkExtensionSupport(VkPhysicalDevice device, const VulkanApp* app) const;
 
-private:
+        VkPhysicalDevice get() const { return m_physicalDevice; }
 
-    bool isSuitable(VkPhysicalDevice device, const VulkanApp* app) const;
+    private:
 
-    VkPhysicalDevice m_physicalDevice = nullptr;
-};
+        bool isSuitable(VkPhysicalDevice device, const VulkanApp* app) const;
+
+        VkPhysicalDevice m_physicalDevice = nullptr;
+    };
+}
 
