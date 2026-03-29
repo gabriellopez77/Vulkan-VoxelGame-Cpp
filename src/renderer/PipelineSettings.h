@@ -1,25 +1,37 @@
 #pragma once
 
-#include "defs.h"
+#include "Defs.h"
+
+#include <vector>
+
+#include <vulkan/vulkan.h>
 
 
 namespace rk {
+    // fwd
     class PushConstants;
+    class DescriptorSetLayout;
 
-    struct PipelineSettings {
+    class PipelineSettings {
+    public:
         const char* vertPath = nullptr;
         const char* fragPath = nullptr;
 
-        u32 dynamicStatesCount = 0;
-        const VkDynamicState* dynamicStates = nullptr;
+        void setShaders(const char* vertPath, const char* fragPath) {
+            this->vertPath = vertPath;
+            this->fragPath = fragPath;
+        }
 
-        u32 bindingsCount = 0;
-        const VkVertexInputBindingDescription* bindings = nullptr;
+        void addDynamicState(VkDynamicState state);
+        void addBindings(u32 binding, VkVertexInputRate inputRate, u32 stride);
+        void addAttributes(u32 location, u32 binding, VkFormat format, u32 stride);
+        void addPushConstants(const PushConstants& constants);
+        void addDescriptorSets(const DescriptorSetLayout& descriptorSets);
 
-        u32 attributesCount = 0;
-        const VkVertexInputAttributeDescription* attributes = nullptr;
-
-        u32 pushConstantsCount = 0;
-        const PushConstants* pushConstants = nullptr;
+        std::vector<VkDynamicState> dynamicStates;
+        std::vector<VkVertexInputBindingDescription> bindings;
+        std::vector<VkVertexInputAttributeDescription> attributes;
+        std::vector<VkPushConstantRange> pushConstants;
+        std::vector<VkDescriptorSetLayout> descriptorSets;
     };
 }

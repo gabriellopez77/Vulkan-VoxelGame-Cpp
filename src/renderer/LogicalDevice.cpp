@@ -1,7 +1,7 @@
 #include "LogicalDevice.h"
 
 #include "VulkanApp.h"
-#include "defs.h"
+#include "Defs.h"
 
 #include <cassert>
 #include <set>
@@ -37,8 +37,8 @@ void rk::LogicalDevice::create(const VulkanApp* app) {
     createInfo.queueCreateInfoCount = queueCreateInfos.size();
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.enabledLayerCount = 0;
-    createInfo.enabledExtensionCount = std::size(utils::deviceExtensions);
-    createInfo.ppEnabledExtensionNames = utils::deviceExtensions;
+    createInfo.enabledExtensionCount = std::size(utl::deviceExtensions);
+    createInfo.ppEnabledExtensionNames = utl::deviceExtensions;
 
     // create the logical device
     if (vkCreateDevice(app->physicalDevice.get(), &createInfo, nullptr, &m_logicalDevice) != VK_SUCCESS)

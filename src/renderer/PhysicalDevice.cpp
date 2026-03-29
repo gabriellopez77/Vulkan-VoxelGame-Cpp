@@ -3,7 +3,7 @@
 #include <cassert>
 #include <vector>
 #include <cstring>
-#include "defs.h"
+#include "Defs.h"
 
 #include "VulkanApp.h"
 #include "SwapChain.h"
@@ -48,7 +48,7 @@ bool rk::PhysicalDevice::checkExtensionSupport(VkPhysicalDevice device, const Vu
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-    for (auto extensionName : utils::deviceExtensions) {
+    for (auto extensionName : utl::deviceExtensions) {
         bool supported = false;
 
         for (auto extensionProperties : availableExtensions)

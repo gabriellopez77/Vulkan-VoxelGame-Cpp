@@ -2,7 +2,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include <fstream>
 #include <cassert>
 
 #include "Utils.h"
@@ -15,32 +14,16 @@
 struct Vertex {
     glm::vec2 pos;
     glm::vec3 color;
-
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributes;
-
-        attributes[0].location = 0;
-        attributes[0].binding = 0;
-        attributes[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributes[0].offset = offsetof(Vertex, pos);
-
-        attributes[1].location = 1;
-        attributes[1].binding = 0;
-        attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributes[1].offset = offsetof(Vertex, color);
-
-        return attributes;
-    }
 };
 
-const Vertex vertices[] = {
+constexpr Vertex vertices[] = {
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
     {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
     {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 };
 
-const uint16_t indices[] = {
+constexpr uint16_t indices[] = {
     0, 1, 2, 2, 3, 0
 };
 
@@ -53,48 +36,41 @@ void rk::VulkanApp::init(GLFWwindow* window) {
     physicalDevice.create(this); // pick physical device
     logicalDevice.create(this); // create logical device
     swapChain.create(this); // create swapChain
-    swapChain.createImageViews(this);
     renderPass.create(this); // create renderPass
-
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
-
-    pushConstants.create(sizeof(glm::mat4) * 2, VK_SHADER_STAGE_VERTEX_BIT);
-
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.size = sizeof(glm::mat4) * 2;
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkVertexInputBindingDescription binding{};
-    binding.binding = 0;
-    binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    binding.stride = sizeof(Vertex);
-
-    // dynamic states
-    constexpr VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR,
-    };
-
-    PipelineSettings pipelineSettings;
-    pipelineSettings.vertPath = SHADERS_FOLDER"/vertex1.spv";
-    pipelineSettings.fragPath = SHADERS_FOLDER"/fragment1.spv";
-    pipelineSettings.attributesCount = attributeDescriptions.size();
-    pipelineSettings.attributes = attributeDescriptions.data();
-    pipelineSettings.bindingsCount = 1;
-    pipelineSettings.bindings = &binding;
-    pipelineSettings.dynamicStatesCount = 2;
-    pipelineSettings.dynamicStates = dynamicStates;
-    pipelineSettings.pushConstantsCount = 1;
-    pipelineSettings.pushConstants = &pushConstants;
-
-    graphicsPipeline1.create(this, pipelineSettings); // create graphics pipeline 1
-    swapChain.createFramebuffers(this); // create framebuffers
-
+    swapChain.createFramebuffers(this);
     createCommandPool();
-    vertexBuffer.createVertexBuffer(this, sizeof(vertices[0]) * std::size(vertices), vertices);
-    vertexBuffer.createIndexBuffer(this, sizeof(indices[0]) * std::size(indices), indices, VK_INDEX_TYPE_UINT16);
     createCommandBuffers();
     createSyncObjects();
+    createDescriptorPool();
+
+
+    ubo.create(this, 256);
+    descriptorSetLayout.create(this, 0, VK_SHADER_STAGE_VERTEX_BIT);
+    descriptorSetLayout.setUbo(this, ubo, 0);
+    pushConstants.create(sizeof(int), VK_SHADER_STAGE_VERTEX_BIT);
+
+
+    PipelineSettings pipelineSettings;
+    pipelineSettings.setShaders(SHADERS_FOLDER"/vertex1.spv", SHADERS_FOLDER"/fragment1.spv");
+    pipelineSettings.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+    pipelineSettings.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+
+    pipelineSettings.addBindings(0, VK_VERTEX_INPUT_RATE_VERTEX, sizeof(Vertex));
+    pipelineSettings.addAttributes(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, pos));
+    pipelineSettings.addAttributes(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
+
+    pipelineSettings.addPushConstants(pushConstants);
+    pipelineSettings.addDescriptorSets(descriptorSetLayout);
+
+    graphicsPipeline1.create(this, pipelineSettings); // create graphics pipeline 1
+
+    vertexBuffer.create(this, sizeof(vertices), vertices, sizeof(indices), indices, VK_INDEX_TYPE_UINT16);
+
+
+    m_viewport.width = swapChain.getWidth();
+    m_viewport.height = swapChain.getHeight();
+
+    m_scissor.extent = swapChain.getSize();
 }
 
 void rk::VulkanApp::clear() {
@@ -104,7 +80,12 @@ void rk::VulkanApp::clear() {
 }
 
 void rk::VulkanApp::resize() {
-    swapChain.needRecreate();
+    swapChain.recreate(this, m_inFlightFence[m_lastFrame]);
+
+    m_viewport.width = swapChain.getWidth();
+    m_viewport.height = swapChain.getHeight();
+
+    m_scissor.extent = swapChain.getSize();
 }
 
 void rk::VulkanApp::createInstance() {
@@ -117,7 +98,7 @@ void rk::VulkanApp::createInstance() {
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     // get required extensions
-    auto requiredExtensions = utils::getRequiredInstanceExtensions();
+    auto requiredExtensions = utl::getRequiredInstanceExtensions();
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -126,9 +107,9 @@ void rk::VulkanApp::createInstance() {
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
     // validation layer
-    if (VALIDATION_LAYERS_ENABLED) {
-        createInfo.enabledLayerCount = std::size(utils::validateLayerNames);
-        createInfo.ppEnabledLayerNames = utils::validateLayerNames;
+    if (utl::VALIDATION_LAYERS_ENABLED) {
+        createInfo.enabledLayerCount = std::size(utl::validateLayerNames);
+        createInfo.ppEnabledLayerNames = utl::validateLayerNames;
     }
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
@@ -177,13 +158,11 @@ void rk::VulkanApp::createCommandPool() {
 }
 
 void rk::VulkanApp::createCommandBuffers() {
-    m_commandBuffers.resize(swapChain.getImagesCount());
-
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = swapChain.getImagesCount();
+    allocInfo.commandBufferCount = utl::FRAMES_COUNT;
 
 
     if (vkAllocateCommandBuffers(logicalDevice.get(), &allocInfo, m_commandBuffers.data()) != VK_SUCCESS)
@@ -191,10 +170,6 @@ void rk::VulkanApp::createCommandBuffers() {
 }
 
 void rk::VulkanApp::createSyncObjects() {
-    m_imageAvailableSemaphore.resize(swapChain.getImagesCount());
-    m_renderFinishedSemaphore.resize(swapChain.getImagesCount());
-    m_inFlightFence.resize(swapChain.getImagesCount());
-
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -202,7 +177,7 @@ void rk::VulkanApp::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (int i = 0; i < swapChain.getImagesCount(); i++) {
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
         if (vkCreateSemaphore(logicalDevice.get(), &semaphoreInfo, nullptr, &m_imageAvailableSemaphore[i]) != VK_SUCCESS ||
             vkCreateSemaphore(logicalDevice.get(), &semaphoreInfo, nullptr, &m_renderFinishedSemaphore[i]) != VK_SUCCESS ||
             vkCreateFence(logicalDevice.get(), &fenceInfo, nullptr, &m_inFlightFence[i]) != VK_SUCCESS) {
@@ -211,24 +186,53 @@ void rk::VulkanApp::createSyncObjects() {
     }
 }
 
-glm::mat4 model(1.f);
+void rk::VulkanApp::createDescriptorPool() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = utl::FRAMES_COUNT;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = utl::FRAMES_COUNT;
+
+    if (vkCreateDescriptorPool(logicalDevice.get(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
+        assert(false && "failed to create descriptor pool!");
+}
+glm::mat4 model1(1.f);
+glm::mat4 model2(1.f);
 void rk::VulkanApp::drawFrame() {
     auto commandBuffer = m_commandBuffers[m_currentFrame];
 
-    graphicsPipeline1.bind(commandBuffer);
     vertexBuffer.bind(commandBuffer);
+    graphicsPipeline1.bind(commandBuffer);
+    descriptorSetLayout.bind(commandBuffer, graphicsPipeline1.getLayout(), m_currentFrame);
 
     float time = (float)glfwGetTime();
 
-    model = glm::translate(glm::mat4(1.f), glm::vec3(swapChain.getWidth() / 2.f, swapChain.getHeight() / 2.f, 0.f));
-    model = glm::rotate(model,  glm::radians(time) * 20.f, glm::vec3(0.f, 0.f, 1.f));
-    model = glm::scale(model, glm::vec3(100.f));
-    glm::mat4 matrices[2] = {
+    model1 = glm::translate(glm::mat4(1.f), glm::vec3(swapChain.getWidth() / 2.f, swapChain.getHeight() / 2.f, 0.f));
+    model1 = glm::rotate(model1,  glm::radians(time) * 20.f, glm::vec3(0.f, 0.f, 1.f));
+    model1 = glm::scale(model1, glm::vec3(100.f));
+
+    model2 = glm::translate(glm::mat4(1.f), glm::vec3(swapChain.getWidth() / 2.f, 0.f, 0.f));
+    model2 = glm::rotate(model2,  glm::radians(time) * 20.f, glm::vec3(0.f, 0.f, 1.f));
+    model2 = glm::scale(model2, glm::vec3(300.f));
+    glm::mat4 matrices1[] = {
         glm::ortho(0.f, (float)swapChain.getWidth(), 0.f, (float)swapChain.getHeight(), -10.f, 10.f),
-        model
+        model1,
+        glm::ortho(0.f, (float)swapChain.getWidth(), 0.f, (float)swapChain.getHeight(), -10.f, 10.f),
+        model2,
     };
 
-    pushConstants.bind(commandBuffer, graphicsPipeline1.getLayout(), sizeof(matrices), matrices);
+    ubo.update(m_currentFrame, 0, sizeof(matrices1), matrices1);
+
+    int index0 = 0;
+    int index1 = 1;
+    pushConstants.bind(commandBuffer, graphicsPipeline1.getLayout(), sizeof(int), &index0);
+    vkCmdDrawIndexed(commandBuffer, std::size(indices), 1, 0, 0, 0);
+
+    pushConstants.bind(commandBuffer, graphicsPipeline1.getLayout(), sizeof(int), &index1);
     vkCmdDrawIndexed(commandBuffer, std::size(indices), 1, 0, 0, 0);
 }
 
@@ -268,16 +272,8 @@ void rk::VulkanApp::beginFrame() {
 
 
     // set dynamic states
-    VkViewport viewport{};
-    viewport.width = swapChain.getWidth();
-    viewport.height = swapChain.getHeight();
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.extent = swapChain.getSize();
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    vkCmdSetViewport(commandBuffer, 0, 1, &m_viewport);
+    vkCmdSetScissor(commandBuffer, 0, 1, &m_scissor);
 }
 
 void rk::VulkanApp::endFrame() {
@@ -301,7 +297,7 @@ void rk::VulkanApp::endFrame() {
     submitInfo.pWaitSemaphores = &m_imageAvailableSemaphore[currentFrame];
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[currentFrame];
+    submitInfo.pCommandBuffers = &commandBuffer;
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &signalSemaphores;
 
@@ -316,12 +312,10 @@ void rk::VulkanApp::endFrame() {
     presentInfo.pSwapchains = &swapChain.getSwapChain();
     presentInfo.pImageIndices = &imageIndex;
 
-    const auto result = vkQueuePresentKHR(logicalDevice.getPresentQueue(), &presentInfo);
-
-    // recreate swap chain if necessary
-    swapChain.tryRecreate(this, result, &m_inFlightFence[currentFrame]);
+    vkQueuePresentKHR(logicalDevice.getPresentQueue(), &presentInfo);
 
     //advance to the next frame
-    currentFrame = (currentFrame + 1) % swapChain.getImagesCount();
+    currentFrame = (currentFrame + 1) % utl::FRAMES_COUNT;
+    m_lastFrame = m_currentFrame;
     m_currentFrame = currentFrame;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer/defs.h"
+#include "renderer/Defs.h"
 
 
 // fwd
@@ -11,7 +11,6 @@ namespace rk {
 
 class Application {
 public:
-    static f32 Time;
     static f32 DeltaTime;
 
     void initWindow(i32 width, i32 height, const char* title);

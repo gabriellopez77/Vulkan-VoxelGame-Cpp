@@ -7,7 +7,6 @@
 #include "renderer/VulkanApp.h"
 
 
-f32 Application::Time = 0.f;
 f32 Application::DeltaTime = 0.f;
 
 void Application::initWindow(i32 width, i32 height, const char* title) {
@@ -45,9 +44,9 @@ void Application::run() {
         glfwPollEvents();
 
         // calculate delta time
-        Time = (f32)glfwGetTime();
-        DeltaTime = Time - m_lastFrame;
-        m_lastFrame = Time;
+        float time = (f32)glfwGetTime();
+        DeltaTime = time - m_lastFrame;
+        m_lastFrame = time;
 
         // run the main loop function if it's set
         if (m_loopFunc) {
@@ -69,7 +68,5 @@ void Application::resizeCallback(GLFWwindow* window, i32 width, i32 height) {
     app->m_windowWidth = width;
     app->m_windowHeight = height;
 
-    if (width != app->m_windowWidth || height != app->m_windowHeight) {
-        app->m_vulkanApp->resize();
-    }
+    app->m_vulkanApp->resize();
 }

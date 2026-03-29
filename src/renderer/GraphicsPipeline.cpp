@@ -1,22 +1,22 @@
 #include "GraphicsPipeline.h"
 
-#include <fstream>
 #include <cassert>
-#include <iostream>
 
 #include <vulkan/vulkan.h>
 
 #include "LogicalDevice.h"
 #include "RenderPass.h"
-#include "SwapChain.h"
 #include "VulkanApp.h"
-#include "defs.h"
+#include "Defs.h"
 #include "PipelineSettings.h"
 
+static VkShaderModule createShaderModule(const char* path, VkDevice device);
 
 void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& settings) {
-    auto vertShaderModule = createShaderModule(settings.vertPath, app->logicalDevice.get());
-    auto fragShaderModule = createShaderModule(settings.fragPath, app->logicalDevice.get());
+    auto logicalDevice = app->logicalDevice.get();
+
+    auto vertShaderModule = createShaderModule(settings.vertPath, logicalDevice);
+    auto fragShaderModule = createShaderModule(settings.fragPath, logicalDevice);
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {
         {
@@ -35,10 +35,10 @@ void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& 
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = settings.bindingsCount;
-    vertexInputInfo.pVertexBindingDescriptions = settings.bindings;
-    vertexInputInfo.vertexAttributeDescriptionCount = settings.attributesCount;
-    vertexInputInfo.pVertexAttributeDescriptions = settings.attributes;
+    vertexInputInfo.vertexBindingDescriptionCount = settings.bindings.size();
+    vertexInputInfo.pVertexBindingDescriptions = settings.bindings.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = settings.attributes.size();
+    vertexInputInfo.pVertexAttributeDescriptions = settings.attributes.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -91,25 +91,20 @@ void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& 
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f; // Optional
-    colorBlending.blendConstants[1] = 0.0f; // Optional
-    colorBlending.blendConstants[2] = 0.0f; // Optional
-    colorBlending.blendConstants[3] = 0.0f; // Optional
-
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = settings.dynamicStatesCount;
-    dynamicState.pDynamicStates = settings.dynamicStates;
+    dynamicState.dynamicStateCount = settings.dynamicStates.size();
+    dynamicState.pDynamicStates = settings.dynamicStates.data();
 
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0; // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
-    pipelineLayoutInfo.pushConstantRangeCount = settings.pushConstantsCount;
-    pipelineLayoutInfo.pPushConstantRanges = &settings.pushConstants->get();
+    pipelineLayoutInfo.setLayoutCount = settings.descriptorSets.size();
+    pipelineLayoutInfo.pSetLayouts = settings.descriptorSets.data();
+    pipelineLayoutInfo.pushConstantRangeCount = settings.pushConstants.size();
+    pipelineLayoutInfo.pPushConstantRanges = settings.pushConstants.data();
 
-    if (vkCreatePipelineLayout(app->logicalDevice.get(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
         assert(false && "failed to create pipeline layout!");
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -130,41 +125,20 @@ void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& 
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    if (vkCreateGraphicsPipelines(app->logicalDevice.get(), nullptr, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(logicalDevice, nullptr, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS)
         assert(false && "failed to create graphics pipeline!");
 
     // destroy shaders modules
-    vkDestroyShaderModule(app->logicalDevice.get(), vertShaderModule, nullptr);
-    vkDestroyShaderModule(app->logicalDevice.get(), fragShaderModule, nullptr);
+    vkDestroyShaderModule(logicalDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
 }
 
 void rk::GraphicsPipeline::bind(VkCommandBuffer command) const {
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 }
 
-std::vector<char> rk::GraphicsPipeline::readShaderFile(const char* filePath) const {
-    // open the file at the end to get the file size
-    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        assert(false && "failed to open shader file!");
-    }
-
-    // get file size and allocate a buffer for it
-    u64 fileSize = file.tellg();
-    std::vector<char> buffer(fileSize);
-
-    // set the file position to the beginning and read the file into the buffer
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
-
-VkShaderModule rk::GraphicsPipeline::createShaderModule(const char* path, VkDevice device) const {
-    auto code = readShaderFile(path);
+VkShaderModule createShaderModule(const char* path, VkDevice device) {
+    auto code = rk::utl::readShaderFile(path);
 
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

@@ -11,8 +11,12 @@
 #include "PhysicalDevice.h"
 #include "RenderPass.h"
 #include "VulkanApp.h"
-#include "defs.h"
+#include "Defs.h"
 
+
+static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+static VkExtent2D chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities);
 
 void rk::SwapChain::create(const VulkanApp* app) {
     auto swapChainSupport = querySwapChainSupport(app->physicalDevice.get());
@@ -22,21 +26,16 @@ void rk::SwapChain::create(const VulkanApp* app) {
     auto presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
     auto extent = chooseSwapExtent(app->window, swapChainSupport.capabilities);
 
-    u32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
-
     // resize vectors
-    m_images.resize(imageCount);
-    m_imageViews.resize(imageCount);
-    m_framebuffers.resize(imageCount);
 
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-        imageCount = swapChainSupport.capabilities.maxImageCount;
+    //if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+    //    imageCount = swapChainSupport.capabilities.maxImageCount;
 
     // create swap chain create info
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = m_surface;
-    createInfo.minImageCount = imageCount;
+    createInfo.minImageCount = utl::FRAMES_COUNT;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
@@ -68,57 +67,17 @@ void rk::SwapChain::create(const VulkanApp* app) {
         assert(false && "failed to create swap chain!");
 
 
+    u32 imageCount = utl::FRAMES_COUNT;
+
     // get swap chain images
     vkGetSwapchainImagesKHR(app->logicalDevice.get(), m_swapChain, &imageCount, nullptr);
     vkGetSwapchainImagesKHR(app->logicalDevice.get(), m_swapChain, &imageCount, m_images.data());
 
     m_swapChainImageFormat = surfaceFormat.format;
     m_screenSize = extent;
-    m_imagesCount = imageCount;
-}
 
-void rk::SwapChain::createSurface(const VulkanApp* app, GLFWwindow* window) {
-    if (glfwCreateWindowSurface(app->instance, window, nullptr, &m_surface) != VK_SUCCESS)
-        assert(false && "failed to create window surface!");
-}
 
-VkSurfaceFormatKHR rk::SwapChain::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-    for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            return availableFormat;
-        }
-    }
-
-    // if the preferred format isn't available, just return the first one from the list
-    return availableFormats[0];
-}
-
-VkPresentModeKHR rk::SwapChain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-    // try to choose VK_PRESENT_MODE_MAILBOX_KHR mode
-    for (const auto& availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return availablePresentMode;
-        }
-    }
-
-    // if the preferred present mode isn't available just return VK_PRESENT_MODE_FIFO_KHR (which is guaranteed to be available)
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D rk::SwapChain::chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
-    if (capabilities.currentExtent.width != std::numeric_limits<u32>::max())
-        return capabilities.currentExtent;
-
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    VkExtent2D actualExtent = { (u32)width, (u32)height };
-
-    // limits extent between min and max extents supported by the surface
-    actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-    actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-    return actualExtent;
+    createImageViews(app);
 }
 
 void rk::SwapChain::createImageViews(const VulkanApp* app) {
@@ -128,10 +87,6 @@ void rk::SwapChain::createImageViews(const VulkanApp* app) {
         createInfo.image = m_images[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         createInfo.format = m_swapChainImageFormat;
-        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         createInfo.subresourceRange.baseMipLevel = 0;
         createInfo.subresourceRange.levelCount = 1;
@@ -141,6 +96,27 @@ void rk::SwapChain::createImageViews(const VulkanApp* app) {
         if (vkCreateImageView(app->logicalDevice.get(), &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
             assert(false && "failed to create image views!");
     }
+}
+
+void rk::SwapChain::createFramebuffers(const VulkanApp* app) {
+    for (int i = 0; i < m_imageViews.size(); i++) {
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = app->renderPass.get();
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = &m_imageViews[i];
+        framebufferInfo.width = m_screenSize.width;
+        framebufferInfo.height = m_screenSize.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(app->logicalDevice.get(), &framebufferInfo, nullptr, &m_framebuffers[i]))
+            assert(false && "failed to create framebuffer!");
+    }
+}
+
+void rk::SwapChain::createSurface(const VulkanApp* app, GLFWwindow* window) {
+    if (glfwCreateWindowSurface(app->instance, window, nullptr, &m_surface) != VK_SUCCESS)
+        assert(false && "failed to create window surface!");
 }
 
 rk::SwapChain::SupportDetails rk::SwapChain::querySwapChainSupport(VkPhysicalDevice device) const {
@@ -171,26 +147,8 @@ rk::SwapChain::SupportDetails rk::SwapChain::querySwapChainSupport(VkPhysicalDev
     return details;
 }
 
-void rk::SwapChain::createFramebuffers(const VulkanApp* app) {
-    for (int i = 0; i < m_imageViews.size(); i++) {
-        VkImageView imageViews[] = { m_imageViews[i] };
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = app->renderPass.get();
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = imageViews;
-        framebufferInfo.width = m_screenSize.width;
-        framebufferInfo.height = m_screenSize.height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(app->logicalDevice.get(), &framebufferInfo, nullptr, &m_framebuffers[i]))
-            assert(false && "failed to create framebuffer!");
-    }
-}
-
 u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) {
-    auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, VK_NULL_HANDLE, &m_currentImageIndex);
+    auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, nullptr, &m_currentImageIndex);
 
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR) {
         assert(false && "failed to acquire swap chain image!");
@@ -199,41 +157,75 @@ u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) {
     return m_currentImageIndex;
 }
 
-void rk::SwapChain::clear(const VulkanApp* app) {
-    for (int i = 0; i < m_imagesCount; i++) {
-        vkDestroyFramebuffer(app->logicalDevice.get(), m_framebuffers[i], nullptr);
-        vkDestroyImageView(app->logicalDevice.get(), m_imageViews[i], nullptr);
+void rk::SwapChain::clear(const VulkanApp* app) const {
+    auto logicalDevice = app->logicalDevice.get();
+
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        vkDestroyFramebuffer(logicalDevice, m_framebuffers[i], nullptr);
+        vkDestroyImageView(logicalDevice, m_imageViews[i], nullptr);
     }
 
-    vkDestroySwapchainKHR(app->logicalDevice.get(), m_swapChain, nullptr);
+    vkDestroySwapchainKHR(logicalDevice, m_swapChain, nullptr);
 }
 
-void rk::SwapChain::recreate(const VulkanApp* app) {
-    clear(app);
-
-    // avoid create a framebuffer with 0 as size
+void rk::SwapChain::recreate(const VulkanApp* app, VkFence fence) {
     int width = 0;
     int height = 0;
     glfwGetFramebufferSize(app->window, &width, &height);
+
+    // avoid create a framebuffer with 0 as size
     while (width == 0 || height == 0) {
         glfwGetFramebufferSize(app->window, &width, &height);
         glfwWaitEvents();
     }
 
+    // wait for command is finished
+    vkWaitForFences(app->logicalDevice.get(), 1, &fence, VK_TRUE, UINT64_MAX);
+
+    // destroy the old swapChain
+    clear(app);
+
+    // create a new swapChain
     create(app);
-    createImageViews(app);
     createFramebuffers(app);
 }
 
-void rk::SwapChain::tryRecreate(const VulkanApp* app, VkResult result, const VkFence* fence) {
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resized) {
-        // wait for command is finished
-        vkWaitForFences(app->logicalDevice.get(), 1, fence, VK_TRUE, UINT64_MAX);
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+    for (const auto& availableFormat : availableFormats) {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return availableFormat;
+            }
+    }
 
-        recreate(app);
-        m_resized = false;
+    // if the preferred format isn't available, just return the first one from the list
+    return availableFormats[0];
+}
+
+VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+    // try to choose VK_PRESENT_MODE_MAILBOX_KHR mode
+    for (const auto& availablePresentMode : availablePresentModes) {
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return availablePresentMode;
+        }
     }
-    else if (result != VK_SUCCESS) {
-        assert(false && "failed to present swap chain image!");
-    }
+
+    // if the preferred present mode isn't available just return VK_PRESENT_MODE_FIFO_KHR (which is guaranteed to be available)
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
+    if (capabilities.currentExtent.width != std::numeric_limits<u32>::max())
+        return capabilities.currentExtent;
+
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+
+    VkExtent2D actualExtent = { (u32)width, (u32)height };
+
+    // limits extent between min and max extents supported by the surface
+    actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+    return actualExtent;
 }
