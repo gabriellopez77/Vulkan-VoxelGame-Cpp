@@ -1,21 +1,18 @@
 #include "VertexBuffer.h"
 
-#include <cassert>
-#include <cstring>
-
 #include <vulkan/vulkan.h>
 
 #include "VulkanApp.h"
+#include "VulkanEnums.h"
 
-void createSendBuffer(const rk::VulkanApp* app, u64 size, const void* data, VkBuffer* buffer, VkDeviceMemory* memory, u32 type);
 
-void rk::VertexBuffer::create(const VulkanApp* app, u64 verticesSize,
+void createSendBuffer(u64 size, const void* data, VkBuffer& buffer, VkDeviceMemory& memory, rk::BufferUsage usage);
+
+void rk::VertexBuffer::create(u64 verticesSize,
     const void* verticesData, u64 indicesSize,
-    const void* indicesData, i32 indexType) {
-    createSendBuffer(app, verticesSize, verticesData, &m_buffer, &m_memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    createSendBuffer(app, indicesSize, indicesData, &m_indexBuffer, &m_indexMemory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-    m_indexBufferType = indexType;
+    const u32* indicesData) {
+    createSendBuffer(verticesSize, verticesData, m_buffer, m_memory, BufferUsage::VERTEX_BUFFER);
+    createSendBuffer(indicesSize, indicesData, m_indexBuffer, m_indexMemory, BufferUsage::INDEX_BUFFER);
 }
 
 void rk::VertexBuffer::destroy(VkDevice device) const {
@@ -30,29 +27,24 @@ void rk::VertexBuffer::bind(VkCommandBuffer command) const {
     u64 offset = 0;
 
     vkCmdBindVertexBuffers(command, 0, 1, &m_buffer, &offset);
-    vkCmdBindIndexBuffer(command, m_indexBuffer, 0, (VkIndexType)m_indexBufferType);
+    vkCmdBindIndexBuffer(command, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
-void createSendBuffer(const rk::VulkanApp* app, u64 size, const void* data, VkBuffer* buffer, VkDeviceMemory* memory, u32 type) {
-    auto logicalDevice = app->logicalDevice.get();
+void createSendBuffer(u64 size, const void* data, VkBuffer& buffer, VkDeviceMemory& memory, rk::BufferUsage usage) {
+    auto logicalDevice = rk::VulkanApp::get()->logicalDevice.get();
 
     // create staging buffer
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    rk::utl::createBuffer(app, size, &stagingBuffer, &stagingBufferMemory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    rk::utl::createBuffer(size, stagingBuffer, stagingBufferMemory, rk::BufferUsage::TRANSFER_SRC,
+        rk::MemoryType::HOST_VISIBLE | rk::MemoryType::HOST_COHERENT);
 
     // upload data
-    void* data2;
-    vkMapMemory(logicalDevice, stagingBufferMemory, 0, size, 0, &data2);
-    std::memcpy(data2, data, size);
-    vkUnmapMemory(logicalDevice, stagingBufferMemory);
+    rk::utl::copyDataToStagingBuffer(size, stagingBufferMemory, data);
 
-    // create buffer in vram
-    rk::utl::createBuffer(app, size, buffer, memory, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    rk::utl::copyBuffer(app, stagingBuffer, *buffer, size);
+    // create buffer in VRAM
+    rk::utl::createBuffer(size, buffer, memory, rk::BufferUsage::TRANSFER_DST | usage, rk::MemoryType::DEVICE_LOCAL);
+    rk::utl::copyBuffer(stagingBuffer, buffer, size);
 
     vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
     vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);

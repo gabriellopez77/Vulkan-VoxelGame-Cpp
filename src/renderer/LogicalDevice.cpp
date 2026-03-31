@@ -13,7 +13,7 @@
 
 void rk::LogicalDevice::create(const VulkanApp* app) {
     // grab queue family indices
-    auto index = app->findQueueFamilies(app->physicalDevice.get());
+    auto index = app->findQueueFamilies();
 
     // create device queue create info
     const f32 queuePriority = 1.0f;

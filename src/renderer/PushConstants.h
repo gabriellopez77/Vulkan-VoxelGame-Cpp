@@ -6,9 +6,12 @@
 
 
 namespace rk {
+    // fwd
+    enum class ShaderStage : i32;
+
     class PushConstants {
     public:
-        void create(u32 size, i32 stage);
+        void create(u32 size, ShaderStage stage);
 
         void bind(VkCommandBuffer command, VkPipelineLayout layout, u32 size, const void *data) const {
             vkCmdPushConstants(command, layout, m_pushConstantInfo.stageFlags, 0, size, data);

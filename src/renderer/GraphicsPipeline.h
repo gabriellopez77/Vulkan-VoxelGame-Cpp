@@ -12,7 +12,7 @@ namespace rk {
 
     class GraphicsPipeline {
     public:
-        void create(const VulkanApp* app, const PipelineSettings& settings);
+        void create(const PipelineSettings& settings);
         void bind(VkCommandBuffer command) const;
 
         VkPipeline get() const { return m_graphicsPipeline; }

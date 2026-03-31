@@ -12,8 +12,8 @@
 
 static VkShaderModule createShaderModule(const char* path, VkDevice device);
 
-void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& settings) {
-    auto logicalDevice = app->logicalDevice.get();
+void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
+    auto logicalDevice = VulkanApp::get()->logicalDevice.get();
 
     auto vertShaderModule = createShaderModule(settings.vertPath, logicalDevice);
     auto fragShaderModule = createShaderModule(settings.fragPath, logicalDevice);
@@ -120,7 +120,7 @@ void rk::GraphicsPipeline::create(const VulkanApp* app, const PipelineSettings& 
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = app->renderPass.get();
+    pipelineInfo.renderPass = VulkanApp::get()->renderPass.get();
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = nullptr; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional

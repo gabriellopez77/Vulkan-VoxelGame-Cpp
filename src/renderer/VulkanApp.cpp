@@ -1,91 +1,58 @@
 #include "VulkanApp.h"
 
-#include <GLFW/glfw3.h>
-
+#include <bitset>
 #include <cassert>
+#include <iostream>
+
+#include <GLFW/glfw3.h>
 
 #include "Utils.h"
 #include "PipelineSettings.h"
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/trigonometric.hpp>
 
-
-struct Vertex {
-    glm::vec2 pos;
-    glm::vec3 color;
-};
-
-constexpr Vertex vertices[] = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
-};
-
-constexpr uint16_t indices[] = {
-    0, 1, 2, 2, 3, 0
-};
+rk::VulkanApp* rk::VulkanApp::m_instance = nullptr;
 
 void rk::VulkanApp::init(GLFWwindow* window) {
-    this->window = window;
+    auto instance = new VulkanApp();
+    m_instance = instance;
 
-    createInstance();
+    instance->window = window;
 
-    swapChain.createSurface(this, window);
-    physicalDevice.create(this); // pick physical device
-    logicalDevice.create(this); // create logical device
-    swapChain.create(this); // create swapChain
-    renderPass.create(this); // create renderPass
-    swapChain.createFramebuffers(this);
-    createCommandPool();
-    createCommandBuffers();
-    createSyncObjects();
-    createDescriptorPool();
+    instance->createInstance();
 
+    instance->swapChain.createSurface(instance);
+    instance->physicalDevice.create(instance); // pick physical device
+    instance->logicalDevice.create(instance); // create logical device
+    instance->swapChain.create(instance); // create swapChain
+    instance->renderPass.create(instance); // create renderPass
+    instance->swapChain.createFramebuffers(instance);
+    instance->createCommandPool();
+    instance->createCommandBuffers();
+    instance->createSyncObjects();
+    instance->createDescriptorPool();
 
-    ubo.create(this, 256);
-    descriptorSetLayout.create(this, 0, VK_SHADER_STAGE_VERTEX_BIT);
-    descriptorSetLayout.setUbo(this, ubo, 0);
-    pushConstants.create(sizeof(int), VK_SHADER_STAGE_VERTEX_BIT);
+    instance->m_viewport.width = instance->swapChain.getWidth();
+    instance->m_viewport.height = instance->swapChain.getHeight();
 
-
-    PipelineSettings pipelineSettings;
-    pipelineSettings.setShaders(SHADERS_FOLDER"/vertex1.spv", SHADERS_FOLDER"/fragment1.spv");
-    pipelineSettings.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
-    pipelineSettings.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
-
-    pipelineSettings.addBindings(0, VK_VERTEX_INPUT_RATE_VERTEX, sizeof(Vertex));
-    pipelineSettings.addAttributes(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, pos));
-    pipelineSettings.addAttributes(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
-
-    pipelineSettings.addPushConstants(pushConstants);
-    pipelineSettings.addDescriptorSets(descriptorSetLayout);
-
-    graphicsPipeline1.create(this, pipelineSettings); // create graphics pipeline 1
-
-    vertexBuffer.create(this, sizeof(vertices), vertices, sizeof(indices), indices, VK_INDEX_TYPE_UINT16);
-
-
-    m_viewport.width = swapChain.getWidth();
-    m_viewport.height = swapChain.getHeight();
-
-    m_scissor.extent = swapChain.getSize();
+    instance->m_scissor.extent = instance->swapChain.getSize();
 }
 
 void rk::VulkanApp::clear() {
     vkDeviceWaitIdle(logicalDevice.get());
 
-    swapChain.clear(this);
+    swapChain.clear(m_instance);
 }
 
 void rk::VulkanApp::resize() {
-    swapChain.recreate(this, m_inFlightFence[m_lastFrame]);
+    auto newSize = swapChain.recreate(m_instance, m_inFlightFence[m_lastFrame]);
 
-    m_viewport.width = swapChain.getWidth();
-    m_viewport.height = swapChain.getHeight();
+    m_viewport.width = newSize.width;
+    m_viewport.height = newSize.height;
 
-    m_scissor.extent = swapChain.getSize();
+    m_scissor.extent = newSize;
+
+    for (auto& fence : m_imagesInFlight)
+        fence = nullptr;
 }
 
 void rk::VulkanApp::createInstance() {
@@ -112,55 +79,87 @@ void rk::VulkanApp::createInstance() {
         createInfo.ppEnabledLayerNames = utl::validateLayerNames;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    if (vkCreateInstance(&createInfo, nullptr, &m_vkInstance) != VK_SUCCESS)
         assert(false && "Failed to create Vulkan instance!");
 }
 
-rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDevice device, const std::vector<VkQueueFamilyProperties>* queues) const {
-    auto* queuesFamilies = queues == nullptr ? physicalDevice.getQueueFamiliesCache() : queues;
+rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDevice device,
+    const std::vector<VkQueueFamilyProperties>* queues) const {
+    const auto& queuesFamilies = queues == nullptr ? *physicalDevice.getQueueFamiliesCache() : *queues;
+    auto de = device == nullptr ? physicalDevice.get() : device;
 
-    // try to find a queue family that supports graphics
+
     QueueFamilyIndices indices;
-    for (int i = 0; i < queuesFamilies->size(); i++) {
-        if ((*queuesFamilies)[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+
+    // graphics
+    for (int i = 0; i < queuesFamilies.size(); i++) {
+        u32 flags = queuesFamilies[i].queueFlags;
+
+        if (flags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
-        }
-
-        if ((*queuesFamilies)[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
-            indices.transferFamily = i;
-        }
-
-        // check if the queue family supports presentation to our window surface
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, swapChain.getSurface(), &presentSupport);
-
-        if (presentSupport) {
-            indices.presentFamily = i;
-        }
-
-        if (indices.isComplete())
             break;
+        }
     }
+
+    assert(indices.graphicsFamily.has_value());
+
+    // present
+    for (int i = 0; i < queuesFamilies.size(); i++) {
+        u32 flags = queuesFamilies[i].queueFlags;
+
+        // try to get present queue that not contains graphics bit
+        if ((flags & VK_QUEUE_GRAPHICS_BIT) == 0) {
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(de, i, swapChain.getSurface(), &presentSupport);
+
+            if (presentSupport) {
+                indices.presentFamily = i;
+                break;
+            }
+        }
+    }
+    if (!indices.presentFamily.has_value())
+        indices.presentFamily = indices.graphicsFamily;
+
+    // transfer
+    for (int i = 0; i < queuesFamilies.size(); i++) {
+        u32 flags = queuesFamilies[i].queueFlags;
+
+        if (flags & VK_QUEUE_TRANSFER_BIT && flags & VK_QUEUE_GRAPHICS_BIT == 0) {
+            indices.transferFamily = i;
+            break;
+        }
+    }
+    if (!indices.transferFamily.has_value())
+        indices.transferFamily = indices.graphicsFamily;
 
     return indices;
 }
 
 void rk::VulkanApp::createCommandPool() {
-    auto queueFamilyIndices = findQueueFamilies(physicalDevice.get());
+    auto queueFamilyIndices = findQueueFamilies();
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
 
-    if (vkCreateCommandPool(logicalDevice.get(), &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+    if (vkCreateCommandPool(logicalDevice.get(), &poolInfo, nullptr, &m_transferCommandPool) != VK_SUCCESS)
+        assert(false && "failed to create command pool!");
+
+    VkCommandPoolCreateInfo poolInfo2{};
+    poolInfo2.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo2.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo2.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+    if (vkCreateCommandPool(logicalDevice.get(), &poolInfo2, nullptr, &m_graphicsCommandPool) != VK_SUCCESS)
         assert(false && "failed to create command pool!");
 }
 
 void rk::VulkanApp::createCommandBuffers() {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_commandPool;
+    allocInfo.commandPool = m_graphicsCommandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = utl::FRAMES_COUNT;
 
@@ -200,58 +199,26 @@ void rk::VulkanApp::createDescriptorPool() {
     if (vkCreateDescriptorPool(logicalDevice.get(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
         assert(false && "failed to create descriptor pool!");
 }
-glm::mat4 model1(1.f);
-glm::mat4 model2(1.f);
-void rk::VulkanApp::drawFrame() {
-    auto commandBuffer = m_commandBuffers[m_currentFrame];
-
-    vertexBuffer.bind(commandBuffer);
-    graphicsPipeline1.bind(commandBuffer);
-    descriptorSetLayout.bind(commandBuffer, graphicsPipeline1.getLayout(), m_currentFrame);
-
-    float time = (float)glfwGetTime();
-
-    model1 = glm::translate(glm::mat4(1.f), glm::vec3(swapChain.getWidth() / 2.f, swapChain.getHeight() / 2.f, 0.f));
-    model1 = glm::rotate(model1,  glm::radians(time) * 20.f, glm::vec3(0.f, 0.f, 1.f));
-    model1 = glm::scale(model1, glm::vec3(100.f));
-
-    model2 = glm::translate(glm::mat4(1.f), glm::vec3(swapChain.getWidth() / 2.f, 0.f, 0.f));
-    model2 = glm::rotate(model2,  glm::radians(time) * 20.f, glm::vec3(0.f, 0.f, 1.f));
-    model2 = glm::scale(model2, glm::vec3(300.f));
-    glm::mat4 matrices1[] = {
-        glm::ortho(0.f, (float)swapChain.getWidth(), 0.f, (float)swapChain.getHeight(), -10.f, 10.f),
-        model1,
-        glm::ortho(0.f, (float)swapChain.getWidth(), 0.f, (float)swapChain.getHeight(), -10.f, 10.f),
-        model2,
-    };
-
-    ubo.update(m_currentFrame, 0, sizeof(matrices1), matrices1);
-
-    int index0 = 0;
-    int index1 = 1;
-    pushConstants.bind(commandBuffer, graphicsPipeline1.getLayout(), sizeof(int), &index0);
-    vkCmdDrawIndexed(commandBuffer, std::size(indices), 1, 0, 0, 0);
-
-    pushConstants.bind(commandBuffer, graphicsPipeline1.getLayout(), sizeof(int), &index1);
-    vkCmdDrawIndexed(commandBuffer, std::size(indices), 1, 0, 0, 0);
-}
 
 void rk::VulkanApp::beginFrame() {
-    // saves a copy in stack because it is faster
-    auto currentFrame = m_currentFrame;
+    // wait for previous frame
+    vkWaitForFences(logicalDevice.get(), 1, &m_inFlightFence[m_currentFrame], VK_TRUE, UINT64_MAX);
 
-    // wait for previous frame and reset fence state
-    vkWaitForFences(logicalDevice.get(), 1, &m_inFlightFence[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(logicalDevice.get(), 1, &m_inFlightFence[currentFrame]);
+    // get next image from swapChain
+    u32 imageIndex = swapChain.getOneImage(logicalDevice.get(), m_imageAvailableSemaphore[m_currentFrame]);
 
-    u32 imageIndex = swapChain.getOneImage(logicalDevice.get(), m_imageAvailableSemaphore[currentFrame]);
+    if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE)
+        vkWaitForFences(logicalDevice.get(), 1, &m_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+
+    m_imagesInFlight[swapChain.getImageIndex()] = m_inFlightFence[m_currentFrame];
+
+    // reset fence state
+    vkResetFences(logicalDevice.get(), 1, &m_inFlightFence[m_currentFrame]);
 
 
-    constexpr VkClearValue clearColor = { .color = { .float32 = { 0.f, 0.f, 0.f, 1.f } } };
+    auto commandBuffer = m_commandBuffers[m_currentFrame];
 
-    auto commandBuffer = m_commandBuffers[currentFrame];
-
-    // rest command buffer
+    // reset command buffer
     vkResetCommandBuffer(commandBuffer, 0);
 
     VkCommandBufferBeginInfo beginInfo{};
@@ -259,6 +226,8 @@ void rk::VulkanApp::beginFrame() {
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
         assert(false && "failed to begin recording command buffer!");
+
+    constexpr VkClearValue clearColor = { .color = { .float32 = { 0.f, 0.f, 0.f, 1.f } } };
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -277,45 +246,44 @@ void rk::VulkanApp::beginFrame() {
 }
 
 void rk::VulkanApp::endFrame() {
-    // saves a copy in stack because it is faster
-    auto currentFrame = m_currentFrame;
-    auto commandBuffer = m_commandBuffers[currentFrame];
-    u32 imageIndex = swapChain.getImageIndex();
+    auto commandBuffer = m_commandBuffers[m_currentFrame];
 
     vkCmdEndRenderPass(commandBuffer);
-
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
         assert(false && "failed to record command buffer!");
 
 
-    const auto signalSemaphores = m_renderFinishedSemaphore[currentFrame];
+    const auto signalSemaphore = m_renderFinishedSemaphore[m_currentFrame];
     constexpr VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &m_imageAvailableSemaphore[currentFrame];
+    submitInfo.pWaitSemaphores = &m_imageAvailableSemaphore[m_currentFrame];
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &signalSemaphores;
+    submitInfo.pSignalSemaphores = &signalSemaphore;
 
-    if (vkQueueSubmit(logicalDevice.getGraphicsQueue(), 1, &submitInfo, m_inFlightFence[currentFrame]) != VK_SUCCESS)
+    if (vkQueueSubmit(logicalDevice.getGraphicsQueue(), 1, &submitInfo, m_inFlightFence[m_currentFrame]) != VK_SUCCESS)
         assert(false && "failed to submit draw command buffer!");
+
+
+    // the same image index obtained from getOneImage in begin frame
+    u32 imageIndex = swapChain.getImageIndex();
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &signalSemaphores;
+    presentInfo.pWaitSemaphores = &signalSemaphore;
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &swapChain.getSwapChain();
+    presentInfo.pSwapchains = &swapChain.get();
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(logicalDevice.getPresentQueue(), &presentInfo);
 
     //advance to the next frame
-    currentFrame = (currentFrame + 1) % utl::FRAMES_COUNT;
     m_lastFrame = m_currentFrame;
-    m_currentFrame = currentFrame;
+    m_currentFrame = (m_currentFrame + 1) % utl::FRAMES_COUNT;
 }

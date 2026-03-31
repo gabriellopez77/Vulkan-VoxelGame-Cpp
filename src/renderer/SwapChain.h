@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "VulkanFwd.h"
+
 #include <array>
 
 #include "Defs.h"
@@ -27,7 +27,7 @@ namespace rk {
         void create(const VulkanApp* app);
         void clear(const VulkanApp* app) const;
         void createFramebuffers(const VulkanApp* app);
-        void recreate(const VulkanApp* app, VkFence fence);
+        VkExtent2D recreate(const VulkanApp* app, VkFence fence);
 
         u32 getWidth() const { return m_screenSize.width; }
         u32 getHeight() const { return m_screenSize.height; }
@@ -38,11 +38,11 @@ namespace rk {
         VkFramebuffer getFramebuffer(u32 index) const { return m_framebuffers[index]; }
         VkFormat getImageFormat() const { return m_swapChainImageFormat; }
         VkSurfaceKHR getSurface() const { return m_surface; }
-        VkSwapchainKHR& getSwapChain() { return m_swapChain; }
+        VkSwapchainKHR& get() { return m_swapChain; }
 
         u32 getOneImage(VkDevice device, VkSemaphore semaphore);
 
-        void createSurface(const VulkanApp* app, GLFWwindow* window);
+        void createSurface(const VulkanApp* app);
         SupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
 
     private:

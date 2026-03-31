@@ -7,13 +7,7 @@
 #include "PhysicalDevice.h"
 #include "SwapChain.h"
 #include "RenderPass.h"
-#include "GraphicsPipeline.h"
 #include "LogicalDevice.h"
-#include "VertexBuffer.h"
-#include "PushConstants.h"
-#include "DescriptorSetLayout.h"
-#include "Ubo.h"
-#include "Utils.h"
 
 
 // fwd
@@ -32,35 +26,33 @@ namespace rk {
             }
         };
 
-        void init(GLFWwindow* window);
-        void clear();
+        static void init(GLFWwindow* window);
+        static VulkanApp* get() { return m_instance; }
         void resize();
-        void drawFrame();
+
+        void clear();
 
         void beginFrame();
         void endFrame();
 
-        u32 getCurrentImage() const { return m_currentImage; }
+        VkInstance getVkInstance() const { return m_vkInstance; }
+        VkCommandBuffer getCurrentCommandBuffer() const { return m_commandBuffers[m_currentFrame]; }
+        u32 getCurrentFrame() const { return m_currentFrame; }
         VkDescriptorPool getDescriptorPool() const { return m_descriptorPool; }
-        VkCommandPool getCommandPool() const { return m_commandPool; }
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, const std::vector<VkQueueFamilyProperties>* queues = nullptr) const;
+        VkCommandPool getTransferCommandPool() const { return m_transferCommandPool; }
+
+        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device = nullptr,
+        const std::vector<VkQueueFamilyProperties>* queues = nullptr) const;
 
         GLFWwindow* window = nullptr;
         PhysicalDevice physicalDevice;
         SwapChain swapChain;
-        RenderPass renderPass;
-        GraphicsPipeline graphicsPipeline1;
         LogicalDevice logicalDevice;
+        RenderPass renderPass;
 
-
-        VkInstance instance = nullptr;
-
-        PushConstants pushConstants;
-        VertexBuffer vertexBuffer;
-        Ubo ubo;
-        DescriptorSetLayout descriptorSetLayout;
-        
     private:
+        static VulkanApp* m_instance;
+
         void createInstance();
         void createCommandPool();
         void createCommandBuffers();
@@ -72,15 +64,20 @@ namespace rk {
         u32 m_currentImage = 0;
 
         // commands
-        VkCommandPool m_commandPool = nullptr;
+        VkCommandPool m_transferCommandPool = nullptr;
+        VkCommandPool m_graphicsCommandPool = nullptr;
         std::array<VkCommandBuffer, utl::FRAMES_COUNT> m_commandBuffers{};
 
         VkDescriptorPool m_descriptorPool = nullptr;
+
+        // vk instance
+        VkInstance m_vkInstance = nullptr;
 
         // fence
         std::array<VkSemaphore, utl::FRAMES_COUNT> m_imageAvailableSemaphore{};
         std::array<VkSemaphore, utl::FRAMES_COUNT> m_renderFinishedSemaphore{};
         std::array<VkFence, utl::FRAMES_COUNT> m_inFlightFence{};
+        std::array<VkFence, utl::FRAMES_COUNT> m_imagesInFlight{};
 
         VkViewport m_viewport = { .maxDepth = 1.f };
         VkRect2D m_scissor{};

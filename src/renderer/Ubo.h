@@ -13,9 +13,9 @@ namespace rk {
 
     class Ubo {
     public:
-        void create(const VulkanApp* app, u64 size);
-        void update(u32 currentFrame, u64 offset, u64 size, const void* data);
-        void destroy(const VulkanApp* app);
+        void create(u64 size);
+        void update(u64 offset, u64 size, const void* data) const;
+        void destroy();
 
         VkBuffer getBuffer(int i) const { return m_buffers[i]; }
         u32 getSize() const { return m_size; }

@@ -3,16 +3,18 @@
 #include "Defs.h"
 #include "Utils.h"
 
+
 namespace rk {
     // fwd
     class VulkanApp;
     class Ubo;
+    enum class ShaderStage : i32;
 
     class DescriptorSetLayout {
     public:
-        void create(const VulkanApp* app, u32 binding, u32 stage);
-        void bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout, u32 currentFrame);
-        void setUbo(const VulkanApp* app, const Ubo& ubo, u32 binding);
+        void create(u32 binding, ShaderStage stage);
+        void bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout);
+        void setUbo(const Ubo& ubo, u32 binding);
 
         VkDescriptorSetLayout get() const { return m_descriptorSetLayout; }
 

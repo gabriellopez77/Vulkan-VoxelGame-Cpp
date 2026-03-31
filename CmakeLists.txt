@@ -26,13 +26,21 @@ file(GLOB_RECURSE MY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp") # read all
 target_sources(${PROJECT_NAME} PRIVATE ${MY_SOURCES}) # add sources saved in MY_SOURCES variable to executable
 # PRIVATE: only for this target, PUBLIC: for this and all targets that link to it, INTERFACE: only for targets that link to it
 
+#stb image
+add_library(stb)
+target_sources(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_image.cpp")
+target_include_directories(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb")
+
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h") # add include directories for header files
 target_include_directories(${PROJECT_NAME} PRIVATE "${Vulkan_INCLUDE_DIRS}") # add include directories for Vulkan headers,
 #Vulkan_INCLUDE_DIRS is a variable provided by find_package(Vulkan) that contains the include directories for Vulkan headers
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw) # link glfw library to executable
-target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan) # link Vulkan library to executable
-target_link_libraries(${PROJECT_NAME} PRIVATE glm) # link glm library to executable
+target_link_libraries(${PROJECT_NAME}
+        glfw
+        Vulkan::Vulkan
+        glm
+        stb
+) # link libraries to executable
 
 # macros
 target_compile_definitions(${PROJECT_NAME} PUBLIC PROJECT_ROOT_PATH="${CMAKE_CURRENT_SOURCE_DIR}")

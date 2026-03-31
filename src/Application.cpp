@@ -8,6 +8,7 @@
 
 
 f32 Application::DeltaTime = 0.f;
+f32 Application::Time = 0.f;
 
 void Application::initWindow(i32 width, i32 height, const char* title) {
     glfwInit();
@@ -23,21 +24,20 @@ void Application::initWindow(i32 width, i32 height, const char* title) {
 }
 
 void Application::initVulkan() {
-    if (m_vulkanApp)
-        assert(false && "Vulkan app already initialized!");
-
-    m_vulkanApp = new rk::VulkanApp();
-    m_vulkanApp->init(m_window);
+    rk::VulkanApp::init(m_window);
 }
 
 void Application::clearVulkan() {
-    m_vulkanApp->clear();
+    rk::VulkanApp::get()->clear();
 }
 
 void Application::run() {
     if (!m_window) {
         assert(false && "Window not initialized. Call initWindow() before run().");
     }
+
+    if (m_startFunc)
+        m_startFunc();
 
     while (!glfwWindowShouldClose(m_window)) {
         // poll events
@@ -47,15 +47,20 @@ void Application::run() {
         float time = (f32)glfwGetTime();
         DeltaTime = time - m_lastFrame;
         m_lastFrame = time;
+        Time = time;
 
         // run the main loop function if it's set
         if (m_loopFunc) {
             m_loopFunc(DeltaTime);
         }
 
-        m_vulkanApp->beginFrame();
-        m_vulkanApp->drawFrame();
-        m_vulkanApp->endFrame();
+        rk::VulkanApp::get()->beginFrame();
+
+        // run the render function if it's set
+        if (m_renderFunc)
+            m_renderFunc();
+
+        rk::VulkanApp::get()->endFrame();
     }
 }
 
@@ -68,5 +73,5 @@ void Application::resizeCallback(GLFWwindow* window, i32 width, i32 height) {
     app->m_windowWidth = width;
     app->m_windowHeight = height;
 
-    app->m_vulkanApp->resize();
+    rk::VulkanApp::get()->resize();
 }

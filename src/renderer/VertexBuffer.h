@@ -11,9 +11,9 @@ namespace rk {
 
     class VertexBuffer {
     public:
-        void create(const VulkanApp* app, u64 verticesSize,
+        void create(u64 verticesSize,
             const void* verticesData, u64 indicesSize,
-            const void* indicesData, i32 indexType);
+            const u32* indicesData);
         void destroy(VkDevice device) const;
         void bind(VkCommandBuffer command) const;
 
@@ -23,6 +23,5 @@ namespace rk {
 
         VkBuffer m_indexBuffer = nullptr;
         VkDeviceMemory m_indexMemory = nullptr;
-        i32 m_indexBufferType = 0;
     };
 }

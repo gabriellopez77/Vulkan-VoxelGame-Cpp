@@ -2,24 +2,26 @@
 
 #include "PushConstants.h"
 #include "DescriptorSetLayout.h"
+#include "VulkanEnums.h"
 
 
-void rk::PipelineSettings::addDynamicState(VkDynamicState state) { dynamicStates.push_back(state); }
+void rk::PipelineSettings::addDynamicState(DynamicStates state) { dynamicStates.push_back((VkDynamicState)state); }
 
-void rk::PipelineSettings::addBindings(u32 binding, VkVertexInputRate inputRate, u32 stride) {
+void rk::PipelineSettings::addBindings(u32 binding, VertexInputRate inputRate, u32 stride) {
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = binding;
-    bindingDescription.inputRate = inputRate;
+    bindingDescription.inputRate = (VkVertexInputRate)inputRate;
     bindingDescription.stride = stride;
 
     this->bindings.push_back(bindingDescription);
+    m_currentBinding = binding;
 }
 
-void rk::PipelineSettings::addAttributes(u32 location, u32 binding, VkFormat format, u32 stride) {
+void rk::PipelineSettings::addAttributes(u32 location, VecFormats format, u32 stride) {
     VkVertexInputAttributeDescription attribute;
     attribute.location = location;
-    attribute.binding = binding;
-    attribute.format = format;
+    attribute.binding = m_currentBinding;
+    attribute.format = (VkFormat)format;
     attribute.offset = stride;
 
     attributes.push_back(attribute);

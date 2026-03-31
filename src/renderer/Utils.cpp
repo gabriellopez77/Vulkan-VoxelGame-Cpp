@@ -8,6 +8,7 @@
 #include <glfw/glfw3.h>
 
 #include "VulkanApp.h"
+#include "VulkanEnums.h"
 
 
 namespace rk::utl {
@@ -47,12 +48,12 @@ namespace rk::utl {
         return buffer;
     }
 
-    u32 findMemoryType(const VulkanApp* app, u32 type, u32 properties) {
+    u32 findMemoryType(u32 type, MemoryType memoryType) {
         VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(app->physicalDevice.get(), &memProperties);
+        vkGetPhysicalDeviceMemoryProperties(VulkanApp::get()->physicalDevice.get(), &memProperties);
 
         for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
-            if (type & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            if (type & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & (u32)memoryType) == (u32)memoryType) {
                 return i;
             }
         }
@@ -60,43 +61,56 @@ namespace rk::utl {
         assert(false && "failed to find suitable memory type!");
     }
 
-    void createBuffer(const VulkanApp* app, u64 size, VkBuffer* buffer, VkDeviceMemory* memory, u32 usage, u32 properties) {
+    void copyDataToStagingBuffer(u64 size, VkDeviceMemory memoryType, const void* data) {
+        auto logicalDevice = VulkanApp::get()->logicalDevice.get();
+
+        void* dataPtr;
+        vkMapMemory(logicalDevice, memoryType, 0, size, 0, &dataPtr);
+        memcpy(dataPtr, data, size);
+        vkUnmapMemory(logicalDevice, memoryType);
+    }
+
+    void createBuffer(u64 size, VkBuffer& buffer, VkDeviceMemory& memory, BufferUsage usage, MemoryType memoryType) {
+        auto logicalDevice = VulkanApp::get()->logicalDevice.get();
+
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = size;
-        bufferInfo.usage = usage;
+        bufferInfo.usage = (u32)usage;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         // create buffer
-        if (vkCreateBuffer(app->logicalDevice.get(), &bufferInfo, nullptr, buffer) != VK_SUCCESS)
+        if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
             assert(false && "failed to create buffer!");
 
         // get memory requirements
         VkMemoryRequirements requirements;
-        vkGetBufferMemoryRequirements(app->logicalDevice.get(), *buffer, &requirements);
+        vkGetBufferMemoryRequirements(logicalDevice, buffer, &requirements);
 
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = requirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(app, requirements.memoryTypeBits, properties);
+        allocInfo.memoryTypeIndex = findMemoryType(requirements.memoryTypeBits, memoryType);
 
         // allocate buffer memory
-        if (vkAllocateMemory(app->logicalDevice.get(), &allocInfo, nullptr, memory) != VK_SUCCESS)
+        if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &memory) != VK_SUCCESS)
             assert(false && "failed to allocate buffer memory!");
 
         // bind memory to buffer
-        vkBindBufferMemory(app->logicalDevice.get(), *buffer, *memory, 0);
+        vkBindBufferMemory(logicalDevice, buffer, memory, 0);
     }
 
-    void copyBuffer(const VulkanApp* app, VkBuffer src, VkBuffer dst, u64 size) {
+    void copyBuffer(VkBuffer src, VkBuffer dst, u64 size) {
+        auto logicalDevice = VulkanApp::get()->logicalDevice;
+
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
-        allocInfo.commandPool = app->getCommandPool();
+        allocInfo.commandPool = VulkanApp::get()->getTransferCommandPool();
 
         VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(app->logicalDevice.get(), &allocInfo, &commandBuffer);
+        vkAllocateCommandBuffers(logicalDevice.get(), &allocInfo, &commandBuffer);
 
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -115,9 +129,13 @@ namespace rk::utl {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &commandBuffer;
 
-        vkQueueSubmit(app->logicalDevice.getTransferQueue(), 1, &submitInfo, nullptr);
-        vkQueueWaitIdle(app->logicalDevice.getTransferQueue());
+        vkQueueSubmit(logicalDevice.getTransferQueue(), 1, &submitInfo, nullptr);
+        vkQueueWaitIdle(logicalDevice.getTransferQueue());
 
-        vkFreeCommandBuffers(app->logicalDevice.get(), app->getCommandPool(), 1, &commandBuffer);
+        vkFreeCommandBuffers(logicalDevice.get(), VulkanApp::get()->getTransferCommandPool(), 1, &commandBuffer);
+    }
+
+    void createImage(u32 width, u32 height) {
+
     }
 }
