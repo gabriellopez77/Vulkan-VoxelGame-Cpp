@@ -1,11 +1,11 @@
 #include "PipelineSettings.h"
 
 #include "PushConstants.h"
-#include "DescriptorSetLayout.h"
+#include "DescriptorSet.h"
 #include "VulkanEnums.h"
 
 
-void rk::PipelineSettings::addDynamicState(DynamicStates state) { dynamicStates.push_back((VkDynamicState)state); }
+void rk::PipelineSettings::addDynamicState(DynamicState state) { dynamicStates.push_back((VkDynamicState)state); }
 
 void rk::PipelineSettings::addBindings(u32 binding, VertexInputRate inputRate, u32 stride) {
     VkVertexInputBindingDescription bindingDescription{};
@@ -17,7 +17,7 @@ void rk::PipelineSettings::addBindings(u32 binding, VertexInputRate inputRate, u
     m_currentBinding = binding;
 }
 
-void rk::PipelineSettings::addAttributes(u32 location, VecFormats format, u32 stride) {
+void rk::PipelineSettings::addAttributes(u32 location, Formats format, u32 stride) {
     VkVertexInputAttributeDescription attribute;
     attribute.location = location;
     attribute.binding = m_currentBinding;
@@ -31,6 +31,6 @@ void rk::PipelineSettings::addPushConstants(const PushConstants& constants) {
     pushConstants.push_back(constants.get());
 }
 
-void rk::PipelineSettings::addDescriptorSets(const DescriptorSetLayout& descriptorSets) {
+void rk::PipelineSettings::addDescriptorSets(const DescriptorSet& descriptorSets) {
     this->descriptorSets.push_back(descriptorSets.get());
 }

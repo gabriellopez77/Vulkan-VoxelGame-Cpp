@@ -1,18 +1,29 @@
 #pragma once
 
 #include "VulkanFwd.h"
+#include "Defs.h"
 
 
 namespace rk {
     // fwd
     class VulkanApp;
+    enum class SamplerFilter : i32;
+    enum class SamplerMode : i32;
 
     class Texture {
     public:
-        void create(const char* texturePath);
+        void create(const char* texturePath, SamplerFilter filter, SamplerMode mode);
+        void destroy() const;
+
+        VkSampler getSampler() const { return m_sampler; }
+        VkImageView getImageView() const { return m_imageView; }
 
     private:
-        VkImage textureImage = nullptr;
-        VkDeviceMemory textureImageMemory = nullptr;
+        void createSampler(SamplerFilter filter, SamplerMode mode);
+
+        VkImage m_image = nullptr;
+        VkDeviceMemory m_imageMemory = nullptr;
+        VkImageView m_imageView = nullptr;
+        VkSampler m_sampler = nullptr;
     };
 }

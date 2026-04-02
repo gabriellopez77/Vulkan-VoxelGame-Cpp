@@ -9,7 +9,6 @@
 #include "Utils.h"
 
 
-std::vector<VkQueueFamilyProperties> getQueuesFromDevice(VkPhysicalDevice physicalDevice);
 bool checkExtensionSupport(VkPhysicalDevice device);
 bool isSuitable(VkPhysicalDevice device, const rk::VulkanApp* app);
 
@@ -35,19 +34,6 @@ void rk::PhysicalDevice::create(const VulkanApp* app) {
 
     if (m_physicalDevice == nullptr)
         assert(false && "Failed to find a suitable GPU!");
-
-    // get queues families and saves it in cache
-    saveQueuesCache();
-}
-
-void rk::PhysicalDevice::saveQueuesCache() {
-    // get queue family properties count
-    u32 queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
-
-    // get queue family properties
-    m_queues.resize(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, m_queues.data());
 }
 
 bool checkExtensionSupport(VkPhysicalDevice device) {
@@ -73,24 +59,9 @@ bool checkExtensionSupport(VkPhysicalDevice device) {
     return true;
 }
 
-std::vector<VkQueueFamilyProperties> getQueuesFromDevice(VkPhysicalDevice physicalDevice) {
-    // get queue family properties count
-    u32 queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-
-    // get queue family properties
-    std::vector<VkQueueFamilyProperties> queues(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queues.data());
-
-    return queues;
-}
-
 bool isSuitable(VkPhysicalDevice device, const rk::VulkanApp* app) {
-    // get queues families supported by the device
-    auto deviceQueuesFamilies = getQueuesFromDevice(device);
-
     // check if the device has a graphics queue family
-    auto indices = app->findQueueFamilies(device, &deviceQueuesFamilies);
+    auto indices = app->findQueueFamilies(device);
 
     // check if device supports all required extensions
     bool extensionsSupported = checkExtensionSupport(device);

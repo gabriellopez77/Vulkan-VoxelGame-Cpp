@@ -24,3 +24,5 @@ typedef VkVertexInputAttributeDescription VkVertexInputAttributeDescription;
 typedef struct VkDescriptorSetLayout_T *VkDescriptorSetLayout;
 typedef struct VkDescriptorSet_T *VkDescriptorSet;
 typedef struct VkImage_T *VkImage;
+typedef struct VkImageView_T *VkImageView;
+typedef struct VkSampler_T *VkSampler;

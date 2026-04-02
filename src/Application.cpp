@@ -6,6 +6,9 @@
 
 #include "renderer/VulkanApp.h"
 
+#include "Game.h"
+#include "inputs.h"
+
 
 f32 Application::DeltaTime = 0.f;
 f32 Application::Time = 0.f;
@@ -21,27 +24,37 @@ void Application::initWindow(i32 width, i32 height, const char* title) {
     glfwSetWindowUserPointer(m_window, this);
 
     glfwSetFramebufferSizeCallback(m_window, resizeCallback);
+    glfwSetKeyCallback(m_window, keyCallback);
+    glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
+    glfwSetCursorPosCallback(m_window, cursorPosCallback);
+
+    setCursorMode(CursorMode::Disabled);
 }
 
-void Application::initVulkan() {
-    rk::VulkanApp::init(m_window);
-}
-
-void Application::clearVulkan() {
+void Application::clear() {
     rk::VulkanApp::get()->clear();
 }
 
-void Application::run() {
+void Application::run(Game* game) {
     if (!m_window) {
         assert(false && "Window not initialized. Call initWindow() before run().");
     }
 
-    if (m_startFunc)
-        m_startFunc();
+    m_game = game;
+
+    // init vulkan
+    rk::VulkanApp::init(m_window);
+
+    // init game
+    game->start(this);
+    game->resize(m_windowWidth, m_windowHeight);
 
     while (!glfwWindowShouldClose(m_window)) {
+        inputs::newFrame();
+
         // poll events
         glfwPollEvents();
+
 
         // calculate delta time
         float time = (f32)glfwGetTime();
@@ -49,29 +62,44 @@ void Application::run() {
         m_lastFrame = time;
         Time = time;
 
-        // run the main loop function if it's set
-        if (m_loopFunc) {
-            m_loopFunc(DeltaTime);
-        }
+        // run game loop
+        game->update(DeltaTime);
 
         rk::VulkanApp::get()->beginFrame();
 
-        // run the render function if it's set
-        if (m_renderFunc)
-            m_renderFunc();
+        // run game render
+        game->render();
 
         rk::VulkanApp::get()->endFrame();
     }
 }
 
+void Application::setCursorMode(CursorMode mode) {
+    glfwSetInputMode(m_window, GLFW_CURSOR, (int)mode);
+}
+
 void Application::resizeCallback(GLFWwindow* window, i32 width, i32 height) {
     auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 
-    if (app->m_resizeFunc)
-        app->m_resizeFunc(width, height);
+    app->m_game->resize(width, height);
 
     app->m_windowWidth = width;
     app->m_windowHeight = height;
 
     rk::VulkanApp::get()->resize();
+}
+
+void Application::keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods) {
+    if (key == GLFW_KEY_UNKNOWN)
+        return;
+
+    inputs::setKeyState(key, action != GLFW_RELEASE);
+}
+
+void Application::mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+    inputs::setMouseButtonState(button, action != GLFW_RELEASE);
+}
+
+void Application::cursorPosCallback(GLFWwindow* window, double x, double y) {
+    inputs::setMousePos({ (float)x, (float)y });
 }

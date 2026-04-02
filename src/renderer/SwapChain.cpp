@@ -11,6 +11,7 @@
 #include "RenderPass.h"
 #include "VulkanApp.h"
 #include "Defs.h"
+#include "VulkanEnums.h"
 
 
 static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
@@ -65,44 +66,35 @@ void rk::SwapChain::create(const VulkanApp* app) {
         assert(false && "failed to create swap chain!");
 
 
-    u32 imageCount = utl::FRAMES_COUNT;
-
     // get swap chain images
-    vkGetSwapchainImagesKHR(logicalDevice, m_swapChain, &imageCount, nullptr);
-    vkGetSwapchainImagesKHR(logicalDevice, m_swapChain, &imageCount, m_images.data());
+    u32 imageCount = utl::FRAMES_COUNT;
+    vkGetSwapchainImagesKHR(logicalDevice, m_swapChain, &imageCount, m_images);
 
-    m_swapChainImageFormat = surfaceFormat.format;
+    m_imagesFormat = (Formats)surfaceFormat.format;
     m_screenSize = extent;
 
+    createImageViews();
 
-    createImageViews(app);
+    utl::createImage(extent.width, extent.height, m_depthImage, m_depthImageMemory, Formats::DEPTH_F32,
+        MemoryType::DEVICE_LOCAL, ImageUsage::DEPTH_STENCIL_ATTACHMENT);
+
+    m_depthImageView = utl::createImageView(m_depthImage, Formats::DEPTH_F32, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void rk::SwapChain::createImageViews(const VulkanApp* app) {
-    for (size_t i = 0; i < utl::FRAMES_COUNT; i++) {
-        VkImageViewCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = m_images[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = m_swapChainImageFormat;
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(app->logicalDevice.get(), &createInfo, nullptr, &m_imageViews[i]) != VK_SUCCESS)
-            assert(false && "failed to create image views!");
-    }
+void rk::SwapChain::createImageViews() {
+    for (size_t i = 0; i < utl::FRAMES_COUNT; i++)
+        m_imageViews[i] = utl::createImageView(m_images[i], m_imagesFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void rk::SwapChain::createFramebuffers(const VulkanApp* app) {
     for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        VkImageView attachments[] = { m_imageViews[i], m_depthImageView };
+
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = app->renderPass.get();
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &m_imageViews[i];
+        framebufferInfo.attachmentCount = std::size(attachments);
+        framebufferInfo.pAttachments = attachments ;
         framebufferInfo.width = m_screenSize.width;
         framebufferInfo.height = m_screenSize.height;
         framebufferInfo.layers = 1;
@@ -124,7 +116,7 @@ rk::SwapChain::SupportDetails rk::SwapChain::querySwapChainSupport(VkPhysicalDev
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &details.capabilities);
 
     // get physical device surface formats count
-    u32 formatCount;
+    u32 formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount, nullptr);
 
     if (formatCount != 0) {
@@ -133,7 +125,7 @@ rk::SwapChain::SupportDetails rk::SwapChain::querySwapChainSupport(VkPhysicalDev
     }
 
     // get physical device surface present modes count
-    u32 presentModeCount;
+    u32 presentModeCount = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surface, &presentModeCount, nullptr);
 
     // get physical device surface present modes
@@ -148,9 +140,8 @@ rk::SwapChain::SupportDetails rk::SwapChain::querySwapChainSupport(VkPhysicalDev
 u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) {
     auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, nullptr, &m_currentImageIndex);
 
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR) {
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR)
         assert(false && "failed to acquire swap chain image!");
-    }
 
     return m_currentImageIndex;
 }
@@ -162,6 +153,11 @@ void rk::SwapChain::clear(const VulkanApp* app) const {
         vkDestroyFramebuffer(logicalDevice, m_framebuffers[i], nullptr);
         vkDestroyImageView(logicalDevice, m_imageViews[i], nullptr);
     }
+
+    // depth buffer
+    vkDestroyImageView(logicalDevice, m_depthImageView, nullptr);
+    vkDestroyImage(logicalDevice, m_depthImage, nullptr);
+    vkFreeMemory(logicalDevice, m_depthImageMemory, nullptr);
 
     vkDestroySwapchainKHR(logicalDevice, m_swapChain, nullptr);
 }

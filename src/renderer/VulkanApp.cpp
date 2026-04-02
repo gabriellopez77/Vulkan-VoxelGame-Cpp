@@ -1,6 +1,5 @@
 #include "VulkanApp.h"
 
-#include <bitset>
 #include <cassert>
 #include <iostream>
 
@@ -11,6 +10,9 @@
 
 
 rk::VulkanApp* rk::VulkanApp::m_instance = nullptr;
+u32 rk::VulkanApp::m_lastFrame = 0;
+u32 rk::VulkanApp::m_currentFrame = 0;
+u32 rk::VulkanApp::m_currentImage = 0;
 
 void rk::VulkanApp::init(GLFWwindow* window) {
     auto instance = new VulkanApp();
@@ -29,7 +31,7 @@ void rk::VulkanApp::init(GLFWwindow* window) {
     instance->createCommandPool();
     instance->createCommandBuffers();
     instance->createSyncObjects();
-    instance->createDescriptorPool();
+    instance->createDescriptorPool(10, 10);
 
     instance->m_viewport.width = instance->swapChain.getWidth();
     instance->m_viewport.height = instance->swapChain.getHeight();
@@ -65,7 +67,19 @@ void rk::VulkanApp::createInstance() {
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     // get required extensions
-    auto requiredExtensions = utl::getRequiredInstanceExtensions();
+    std::vector<const char*> requiredExtensions;
+
+    u32 glfwExtensionCount = 0;
+    auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    requiredExtensions.reserve(glfwExtensionCount);
+
+    for (int i = 0; i < glfwExtensionCount; i++)
+        requiredExtensions.push_back(glfwExtensions[i]);
+
+    if (utl::VALIDATION_LAYERS_ENABLED)
+        requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -83,17 +97,23 @@ void rk::VulkanApp::createInstance() {
         assert(false && "Failed to create Vulkan instance!");
 }
 
-rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDevice device,
-    const std::vector<VkQueueFamilyProperties>* queues) const {
-    const auto& queuesFamilies = queues == nullptr ? *physicalDevice.getQueueFamiliesCache() : *queues;
-    auto de = device == nullptr ? physicalDevice.get() : device;
+rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDevice device) const {
+    auto physicalDevice = device == nullptr ? this->physicalDevice.get() : device;
+
+    // get queue family properties count
+    u32 queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+    // get queue family properties
+    std::vector<VkQueueFamilyProperties> queues(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queues.data());
 
 
     QueueFamilyIndices indices;
 
     // graphics
-    for (int i = 0; i < queuesFamilies.size(); i++) {
-        u32 flags = queuesFamilies[i].queueFlags;
+    for (int i = 0; i < queues.size(); i++) {
+        u32 flags = queues[i].queueFlags;
 
         if (flags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
@@ -104,13 +124,13 @@ rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDev
     assert(indices.graphicsFamily.has_value());
 
     // present
-    for (int i = 0; i < queuesFamilies.size(); i++) {
-        u32 flags = queuesFamilies[i].queueFlags;
+    for (int i = 0; i < queues.size(); i++) {
+        u32 flags = queues[i].queueFlags;
 
         // try to get present queue that not contains graphics bit
         if ((flags & VK_QUEUE_GRAPHICS_BIT) == 0) {
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(de, i, swapChain.getSurface(), &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, swapChain.getSurface(), &presentSupport);
 
             if (presentSupport) {
                 indices.presentFamily = i;
@@ -122,9 +142,10 @@ rk::VulkanApp::QueueFamilyIndices rk::VulkanApp::findQueueFamilies(VkPhysicalDev
         indices.presentFamily = indices.graphicsFamily;
 
     // transfer
-    for (int i = 0; i < queuesFamilies.size(); i++) {
-        u32 flags = queuesFamilies[i].queueFlags;
+    for (int i = 0; i < queues.size(); i++) {
+        u32 flags = queues[i].queueFlags;
 
+        // try to get transfer queue that not contains graphics bit
         if (flags & VK_QUEUE_TRANSFER_BIT && flags & VK_QUEUE_GRAPHICS_BIT == 0) {
             indices.transferFamily = i;
             break;
@@ -164,7 +185,7 @@ void rk::VulkanApp::createCommandBuffers() {
     allocInfo.commandBufferCount = utl::FRAMES_COUNT;
 
 
-    if (vkAllocateCommandBuffers(logicalDevice.get(), &allocInfo, m_commandBuffers.data()) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(logicalDevice.get(), &allocInfo, m_commandBuffers) != VK_SUCCESS)
         assert(false && "failed to allocate command buffers!");
 }
 
@@ -185,16 +206,17 @@ void rk::VulkanApp::createSyncObjects() {
     }
 }
 
-void rk::VulkanApp::createDescriptorPool() {
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = utl::FRAMES_COUNT;
+void rk::VulkanApp::createDescriptorPool(u32 maxSetsInDescriptors, u32 maxDescriptorCount) {
+    VkDescriptorPoolSize poolSizes[] = {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, utl::FRAMES_COUNT * maxDescriptorCount },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, utl::FRAMES_COUNT * maxDescriptorCount },
+    };
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = utl::FRAMES_COUNT;
+    poolInfo.poolSizeCount = std::size(poolSizes);
+    poolInfo.pPoolSizes = poolSizes;
+    poolInfo.maxSets = maxSetsInDescriptors;
 
     if (vkCreateDescriptorPool(logicalDevice.get(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
         assert(false && "failed to create descriptor pool!");
@@ -207,7 +229,7 @@ void rk::VulkanApp::beginFrame() {
     // get next image from swapChain
     u32 imageIndex = swapChain.getOneImage(logicalDevice.get(), m_imageAvailableSemaphore[m_currentFrame]);
 
-    if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE)
+    if (m_imagesInFlight[imageIndex] != nullptr)
         vkWaitForFences(logicalDevice.get(), 1, &m_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
 
     m_imagesInFlight[swapChain.getImageIndex()] = m_inFlightFence[m_currentFrame];
@@ -227,15 +249,18 @@ void rk::VulkanApp::beginFrame() {
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
         assert(false && "failed to begin recording command buffer!");
 
-    constexpr VkClearValue clearColor = { .color = { .float32 = { 0.f, 0.f, 0.f, 1.f } } };
+    const VkClearValue clearValues[2] = {
+        { .color = {{0.0f, 0.0f, 0.0f, 1.0f}} },
+        { .depthStencil = {1.0f, 0} }
+    };
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass.get();
     renderPassInfo.framebuffer = swapChain.getFramebuffer(imageIndex);
     renderPassInfo.renderArea.extent = swapChain.getSize();
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    renderPassInfo.clearValueCount = std::size(clearValues);
+    renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 

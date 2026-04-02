@@ -1,9 +1,7 @@
 #pragma once
 
 #include <optional>
-#include <array>
 
-#include "Defs.h"
 #include "PhysicalDevice.h"
 #include "SwapChain.h"
 #include "RenderPass.h"
@@ -28,6 +26,8 @@ namespace rk {
 
         static void init(GLFWwindow* window);
         static VulkanApp* get() { return m_instance; }
+        static u32 currentFrame() { return m_currentFrame; }
+
         void resize();
 
         void clear();
@@ -37,12 +37,10 @@ namespace rk {
 
         VkInstance getVkInstance() const { return m_vkInstance; }
         VkCommandBuffer getCurrentCommandBuffer() const { return m_commandBuffers[m_currentFrame]; }
-        u32 getCurrentFrame() const { return m_currentFrame; }
         VkDescriptorPool getDescriptorPool() const { return m_descriptorPool; }
         VkCommandPool getTransferCommandPool() const { return m_transferCommandPool; }
 
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device = nullptr,
-        const std::vector<VkQueueFamilyProperties>* queues = nullptr) const;
+        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device = nullptr) const;
 
         GLFWwindow* window = nullptr;
         PhysicalDevice physicalDevice;
@@ -57,16 +55,16 @@ namespace rk {
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
-        void createDescriptorPool();
+        void createDescriptorPool(u32 maxSetsInDescriptors, u32 maxDescriptorCount);
 
-        u32 m_lastFrame = 0;
-        u32 m_currentFrame = 0;
-        u32 m_currentImage = 0;
+        static u32 m_lastFrame;
+        static u32 m_currentFrame;
+        static u32 m_currentImage;
 
         // commands
         VkCommandPool m_transferCommandPool = nullptr;
         VkCommandPool m_graphicsCommandPool = nullptr;
-        std::array<VkCommandBuffer, utl::FRAMES_COUNT> m_commandBuffers{};
+        VkCommandBuffer m_commandBuffers[utl::FRAMES_COUNT] = {};
 
         VkDescriptorPool m_descriptorPool = nullptr;
 
@@ -74,10 +72,10 @@ namespace rk {
         VkInstance m_vkInstance = nullptr;
 
         // fence
-        std::array<VkSemaphore, utl::FRAMES_COUNT> m_imageAvailableSemaphore{};
-        std::array<VkSemaphore, utl::FRAMES_COUNT> m_renderFinishedSemaphore{};
-        std::array<VkFence, utl::FRAMES_COUNT> m_inFlightFence{};
-        std::array<VkFence, utl::FRAMES_COUNT> m_imagesInFlight{};
+        VkSemaphore m_imageAvailableSemaphore[utl::FRAMES_COUNT] = {};
+        VkSemaphore m_renderFinishedSemaphore[utl::FRAMES_COUNT] = {};
+        VkFence m_inFlightFence[utl::FRAMES_COUNT] = {};
+        VkFence m_imagesInFlight[utl::FRAMES_COUNT] = {};
 
         VkViewport m_viewport = { .maxDepth = 1.f };
         VkRect2D m_scissor{};

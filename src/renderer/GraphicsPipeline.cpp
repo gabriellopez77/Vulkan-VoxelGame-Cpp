@@ -1,16 +1,18 @@
 #include "GraphicsPipeline.h"
 
 #include <cassert>
+#include <fstream>
 
 #include <vulkan/vulkan.h>
 
 #include "LogicalDevice.h"
 #include "RenderPass.h"
 #include "VulkanApp.h"
-#include "Defs.h"
 #include "PipelineSettings.h"
 
+
 static VkShaderModule createShaderModule(const char* path, VkDevice device);
+static std::vector<char> readShaderFile(const char* filePath);
 
 void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     auto logicalDevice = VulkanApp::get()->logicalDevice.get();
@@ -91,11 +93,23 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
+
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = settings.dynamicStates.size();
     dynamicState.pDynamicStates = settings.dynamicStates.data();
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {}; // Optional
+    depthStencil.back = {}; // Optional
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -116,7 +130,7 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = nullptr; // Optional
+    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = m_pipelineLayout;
@@ -138,7 +152,7 @@ void rk::GraphicsPipeline::bind(VkCommandBuffer command) const {
 }
 
 VkShaderModule createShaderModule(const char* path, VkDevice device) {
-    auto code = rk::utl::readShaderFile(path);
+    auto code = readShaderFile(path);
 
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -150,4 +164,25 @@ VkShaderModule createShaderModule(const char* path, VkDevice device) {
         assert(false && "failed to create shader module!");
 
     return shaderModule;
+}
+
+std::vector<char> readShaderFile(const char* filePath) {
+    // open the file at the end to get the file size
+    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        assert(false && "failed to open shader file!");
+    }
+
+    // get file size and allocate a buffer for it
+    u64 fileSize = file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    // set the file position to the beginning and read the file into the buffer
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
 }

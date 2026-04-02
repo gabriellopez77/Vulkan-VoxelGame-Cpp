@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include <array>
+#include <vector>
 
 #include "Defs.h"
 #include "Utils.h"
@@ -15,6 +15,7 @@ namespace rk {
     class VulkanApp;
     class RenderPass;
     class LogicalDevice;
+    enum class Formats : i32;
 
     class SwapChain {
     public:
@@ -36,7 +37,7 @@ namespace rk {
         u32 getImageIndex() const { return m_currentImageIndex; }
 
         VkFramebuffer getFramebuffer(u32 index) const { return m_framebuffers[index]; }
-        VkFormat getImageFormat() const { return m_swapChainImageFormat; }
+        Formats getImageFormat() const { return m_imagesFormat; }
         VkSurfaceKHR getSurface() const { return m_surface; }
         VkSwapchainKHR& get() { return m_swapChain; }
 
@@ -46,17 +47,22 @@ namespace rk {
         SupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
 
     private:
-        void createImageViews(const VulkanApp* app);
+        void createImageViews();
 
         u32 m_currentImageIndex = 0;
 
         VkExtent2D m_screenSize = {};
         VkSurfaceKHR m_surface = nullptr;
         VkSwapchainKHR m_swapChain = nullptr;
-        VkFormat m_swapChainImageFormat = {};
+        Formats m_imagesFormat = {};
 
-        std::array<VkImage, utl::FRAMES_COUNT> m_images{};
-        std::array<VkImageView, utl::FRAMES_COUNT> m_imageViews{};
-        std::array<VkFramebuffer, utl::FRAMES_COUNT> m_framebuffers{};
+        // depth buffer
+        VkImage m_depthImage = nullptr;
+        VkDeviceMemory m_depthImageMemory = nullptr;
+        VkImageView m_depthImageView = nullptr;
+
+        VkImage m_images[utl::FRAMES_COUNT] = {};
+        VkImageView m_imageViews[utl::FRAMES_COUNT] = {};
+        VkFramebuffer m_framebuffers[utl::FRAMES_COUNT] = {};
     };
 }

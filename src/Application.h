@@ -5,33 +5,33 @@
 
 // fwd
 struct GLFWwindow;
+class Game;
 
 class Application {
 public:
+    enum class CursorMode {
+        Normal = 0x00034001,
+        Disabled = 0x00034003
+    };
+
     static f32 DeltaTime;
     static f32 Time;
 
     void initWindow(i32 width, i32 height, const char* title);
-    void initVulkan();
-    void clearVulkan();
-    void run();
+    void run(Game* game);
+    void clear();
+    void setCursorMode(CursorMode mode);
 
     i32 getWindowWidth() const { return m_windowWidth; }
     i32 getWindowHeight() const { return m_windowHeight; }
 
-    void setLoopFunc(void (*loopFunc)(float dt)) { m_loopFunc = loopFunc; }
-    void setStartFunc(void (*startFunc)()) { m_startFunc = startFunc; }
-    void setRenderFunc(void (*renderFunc)()) { m_renderFunc = renderFunc; }
-    void setResizeFunc(void (*resizeFun)(i32 width, i32 height)) {m_resizeFunc = resizeFun; }
-
 private:
     static void resizeCallback(GLFWwindow* window, i32 width, i32 height);
+    static void keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods);
+    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+    static void cursorPosCallback(GLFWwindow* window, double x, double y);
 
-    // functions pointers
-    void (*m_startFunc)() = nullptr;
-    void (*m_loopFunc)(float dt) = nullptr;
-    void (*m_renderFunc)() = nullptr;
-    void (*m_resizeFunc)(i32 width, i32 height) = nullptr;
+    Game* m_game = nullptr;
 
     // glfw window pointer
     GLFWwindow* m_window = nullptr;
