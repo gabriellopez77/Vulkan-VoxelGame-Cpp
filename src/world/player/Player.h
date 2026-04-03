@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/vec3.hpp>
+#include "math/Vec3.h"
 
 #include "Camera.h"
 
@@ -15,5 +15,5 @@ public:
 
     Camera camera;
 
-    glm::vec3 position{};
+    Vec3 position;
 };

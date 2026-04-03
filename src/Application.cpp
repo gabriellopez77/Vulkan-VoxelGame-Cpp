@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#include "renderer/VulkanApp.h"
+#include "render/core/VulkanApp.h"
 
 #include "Game.h"
 #include "inputs.h"
@@ -43,7 +43,7 @@ void Application::run(Game* game) {
     m_game = game;
 
     // init vulkan
-    rk::VulkanApp::init(m_window);
+    rk::VulkanApp::init(this);
 
     // init game
     game->start(this);
@@ -78,15 +78,20 @@ void Application::setCursorMode(CursorMode mode) {
     glfwSetInputMode(m_window, GLFW_CURSOR, (int)mode);
 }
 
+void Application::getFrameBufferSize(i32* width, i32* height) const {
+    glfwGetFramebufferSize(m_window, width, height);
+}
+
 void Application::resizeCallback(GLFWwindow* window, i32 width, i32 height) {
     auto app = static_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    rk::VulkanApp::get()->resize();
 
     app->m_game->resize(width, height);
 
     app->m_windowWidth = width;
     app->m_windowHeight = height;
 
-    rk::VulkanApp::get()->resize();
 }
 
 void Application::keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods) {

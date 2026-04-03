@@ -1,10 +1,10 @@
 #pragma once
 
-#include "renderer/DescriptorSet.h"
-#include "renderer/GraphicsPipeline.h"
-#include "renderer/Ubo.h"
-#include "renderer/VertexBuffer.h"
-#include "renderer/Texture.h"
+#include "render/DescriptorSet.h"
+#include "render/GraphicsPipeline.h"
+#include "render/Ubo.h"
+#include "render/VertexBuffer.h"
+#include "render/Texture.h"
 #include "world/player/Player.h"
 
 
@@ -29,4 +29,5 @@ private:
     rk::Texture texture1;
 
     Application* m_application = nullptr;
+
 };

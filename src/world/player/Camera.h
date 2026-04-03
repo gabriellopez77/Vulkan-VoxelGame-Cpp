@@ -1,22 +1,20 @@
 #pragma once
 
-#include "../../renderer/Defs.h"
-
-#include <glm/vec3.hpp>
-#include <glm/mat4x4.hpp>
+#include "math/Vec3.h"
+#include "math/Matrix4.h"
 
 
 class Camera {
 public:
-    void update(glm::vec3 position);
+    void update(Vec3 position);
 
     void resize(float width, float height);
 
-    const glm::mat4& getProjectionMatrix() const { return m_projection; }
-    const glm::mat4& getViewMatrix() const { return m_view; }
+    const Matrix4& getProjectionMatrix() const { return m_projection; }
+    const Matrix4& getViewMatrix() const { return m_view; }
 
-    glm::vec3 getDirection() const { return m_direction; }
-    glm::vec3 getPosition() const { return m_position; }
+    Vec3 getDirection() const { return m_direction; }
+    Vec3 getPosition() const { return m_position; }
 
     f32 getRotX() const { return m_rotX; }
     f32 getRotY() const { return m_rotY; }
@@ -24,12 +22,12 @@ public:
 private:
     void processRotation();
 
-    glm::mat4 m_projection{};
-    glm::mat4 m_view{};
+    Matrix4 m_projection{0.f};
+    Matrix4 m_view{0.f};
 
-    glm::vec3 m_position{};
+    Vec3 m_position;
 
-    glm::vec3 m_direction{};
+    Vec3 m_direction;
 
     f32 m_rotX = 0.f;
     f32 m_rotY = 0.f;

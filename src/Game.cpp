@@ -2,11 +2,15 @@
 
 #include <iostream>
 
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include "Application.h"
 #include "Inputs.h"
-#include "glm/ext/matrix_clip_space.hpp"
-#include "renderer/PipelineSettings.h"
-#include "renderer/VulkanApp.h"
-#include "renderer/VulkanEnums.h"
+#include "glm/fwd.hpp"
+#include "render/PipelineSettings.h"
+#include "render/core/VulkanApp.h"
+#include "render/VulkanEnums.h"
 
 
 struct VertexData {
@@ -43,6 +47,10 @@ void Game::start(Application* application) {
     descriptorSet.create();
 
     rk::PipelineSettings pipelineSettings;
+    pipelineSettings.cullMode = rk::CullMode::DISABLE;
+    pipelineSettings.enableBlending = true;
+    pipelineSettings.enableDepthTest = true;
+
     pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.spv", SHADERS_FOLDER"/fragment.spv");
     pipelineSettings.addDynamicState(rk::DynamicState::VIEWPORT);
     pipelineSettings.addDynamicState(rk::DynamicState::SCISSOR);
@@ -55,16 +63,17 @@ void Game::start(Application* application) {
     pipelineSettings.addAttributes(2, rk::Formats::RGB_F32, offsetof(InstanceData, position));
     pipelineSettings.addAttributes(3, rk::Formats::RG_F32, offsetof(InstanceData, size));
 
-    pipelineSettings.addDescriptorSets(descriptorSet);
+    pipelineSettings.addDescriptorSet(descriptorSet);
+    pipelineSettings.addPushConstant(0, 64, rk::ShaderStage::VERTEX);
 
     pipeline.create(pipelineSettings);
 
     InstanceData instanceData[INSTANCE_COUNT] = {
-        {{0, 296, 30}, {100, 100} },
-        {{200, 0, 10}, {130, 56} },
-        {{0, 99, -10}, {150, 20} },
-        {{400, 423, 100}, {10, 90} },
-        {{345, 45, 50}, {100, 80} },
+        {{0,  29,  30}, {100, 100} },
+        {{20, 0,   10}, {130, 56} },
+        {{0,  99, -10}, {150, 20} },
+        {{40, 42,  10}, {10,  90} },
+        {{34, 45,  50}, {100, 80} },
     };
 
     vertexBuffer1.create(sizeof(vertices), vertices, sizeof(indices), indices);
@@ -83,12 +92,30 @@ void Game::render() {
     vertexBuffer2.bind(command, 1);
     descriptorSet.bind(command, pipeline.getLayout());
 
-    glm::mat4 arr[2] = {
-        player.camera.getProjectionMatrix(),
-        player.camera.getViewMatrix()
-    };
-    ubo.updateSingle(0, 128, arr);
+    auto proj = player.camera.getProjectionMatrix();
+    auto view =player.camera.getViewMatrix();
 
+    ubo.updateSingle(0, 64, &proj);
+    ubo.updateSingle(64, 64, &view);
+
+    Matrix4 model(1.f);
+    model.rotate(Application::Time * 25.f, {1.f, 0.f, 0.f});
+    model.translate({0, 0, -1});
+    model.scale({100, 100, 100});
+
+    glm::mat4 model2(1.f);
+    model2 = glm::rotate(model2, glm::radians(Application::Time * 25.f), glm::vec3(1.f, 0.f, 0.f));
+    model2 = glm::translate(model2, glm::vec3(0.f, 0.f, 1));
+    model2 = glm::scale(model2, glm::vec3(100.f, 100.f, 100.f));
+
+    pipeline.bindPushConstant(command, 64, &model);
+    vkCmdDrawIndexed(command, std::size(indices), INSTANCE_COUNT, 0, 0, 0);
+
+    model = Matrix4(1.f);
+
+    model.translate(Vec3(0.f, 0.f, 1));
+    model.scale(Vec3(10.f, 10.f, 10.f));
+    pipeline.bindPushConstant(command, 64, &model);
     vkCmdDrawIndexed(command, std::size(indices), INSTANCE_COUNT, 0, 0, 0);
 
     inputs::setMousePos(inputs::getMousePos());

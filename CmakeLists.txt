@@ -17,7 +17,7 @@ find_package(Vulkan REQUIRED)
 # subdirectories
 add_subdirectory("dependencies/glfw") # add glfw as a subdirectory
 add_subdirectory("dependencies/glm") # add glm as a subdirectory
-
+add_subdirectory("dependencies/nlohmann")
 
 add_executable(${PROJECT_NAME}) # create executable with project name
 
@@ -32,7 +32,9 @@ target_sources(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/stb_imag
 target_include_directories(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb")
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h") # add include directories for header files
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/") # add include directories for header files
 target_include_directories(${PROJECT_NAME} PRIVATE "${Vulkan_INCLUDE_DIRS}") # add include directories for Vulkan headers,
+
 #Vulkan_INCLUDE_DIRS is a variable provided by find_package(Vulkan) that contains the include directories for Vulkan headers
 
 target_link_libraries(${PROJECT_NAME}
@@ -40,6 +42,7 @@ target_link_libraries(${PROJECT_NAME}
         Vulkan::Vulkan
         glm
         stb
+        nlohmann_json::nlohmann_json
 ) # link libraries to executable
 
 # macros

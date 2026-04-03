@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer/Defs.h"
+#include "Defs.h"
 
 
 // fwd
@@ -22,8 +22,11 @@ public:
     void clear();
     void setCursorMode(CursorMode mode);
 
+    GLFWwindow* getWindow() const { return m_window; };
     i32 getWindowWidth() const { return m_windowWidth; }
     i32 getWindowHeight() const { return m_windowHeight; }
+
+    void getFrameBufferSize(i32* width, i32* height) const;
 
 private:
     static void resizeCallback(GLFWwindow* window, i32 width, i32 height);
@@ -35,6 +38,7 @@ private:
 
     // glfw window pointer
     GLFWwindow* m_window = nullptr;
+
     i32 m_windowWidth = 0;
     i32 m_windowHeight = 0;
 
