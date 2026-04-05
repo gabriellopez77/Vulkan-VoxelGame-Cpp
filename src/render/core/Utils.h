@@ -2,18 +2,10 @@
 
 #include "Defs.h"
 #include "VulkanFwd.h"
+#include "render/VulkanEnums.h"
 
 #define SHADERS_FOLDER PROJECT_ROOT_PATH"/assets/shaders/compiled"
 
-
-namespace rk {
-    // fwd
-    enum class BufferUsage : u32;
-    enum class MemoryType : u32;
-    enum class Formats : i32;
-    enum class ImageUsage : i32;
-    enum class ImageLayout : i32;
-}
 
 namespace rk::utl {
     constexpr bool VALIDATION_LAYERS_ENABLED = true;

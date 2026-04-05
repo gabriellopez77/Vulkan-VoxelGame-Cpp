@@ -2,7 +2,7 @@
 
 #include "core/VulkanFwd.h"
 
-#include "Defs.h"
+#include "VulkanEnums.h"
 
 
 namespace resources {
@@ -10,10 +10,6 @@ namespace resources {
 }
 
 namespace rk {
-    // fwd
-    enum class SamplerFilter : i32;
-    enum class SamplerMode : i32;
-
     class Texture {
     public:
         void create(const char* texturePath, SamplerFilter filter, SamplerMode mode);

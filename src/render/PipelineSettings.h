@@ -4,17 +4,13 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Defs.h"
+#include "VulkanEnums.h"
 
 
 namespace rk {
     // fwd
     class DescriptorSet;
-    enum class Formats : i32;
-    enum class ShaderStage : i32;
-    enum class DynamicState : i32;
-    enum class VertexInputRate : i32;
-    enum class CullMode : u32;
+    class AttributesObject;
 
     class PipelineSettings {
     public:
@@ -30,13 +26,17 @@ namespace rk {
             this->fragPath = fragPath;
         }
 
-        void addDynamicState(DynamicState state);
-        void addBindings(u32 binding, VertexInputRate inputRate, u32 stride);
-        void addAttributes(u32 location, Formats format, u32 stride);
+        void addDynamicState(const std::vector<DynamicState>& dynamicStates) {
+            this->dynamicStates.reserve(dynamicStates.size());
+
+            for (int i = 0; i < dynamicStates.size(); i++)
+                this->dynamicStates.push_back((VkDynamicState)dynamicStates[i]);
+        }
+        void AddAttributesObject(const AttributesObject& attributesObject);
         void addPushConstant(u32 offset, u32 size, ShaderStage stage);
         void addDescriptorSet(const DescriptorSet& descriptorSets);
 
-        CullMode cullMode = (CullMode)VK_CULL_MODE_BACK_BIT;
+        CullMode cullMode = CullMode::BACK;
         bool enableBlending = false;
         bool enableDepthTest = true;
 
@@ -46,8 +46,5 @@ namespace rk {
         std::vector<VkVertexInputBindingDescription> bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
         std::vector<VkDescriptorSetLayout> descriptorSets;
-
-    private:
-        u32 m_currentBinding = 0;
     };
 }

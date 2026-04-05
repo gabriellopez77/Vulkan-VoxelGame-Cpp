@@ -10,6 +10,8 @@ namespace inputs {
 	glm::vec2 mouseDelta;
 
     void newFrame() {
+		inputs::setMousePos(mousePos);
+
 		for (int i = 0; i < (int)Keys::LAST_KEY; i++) {
 			lastKeys[i] = false;
 			lastKeys[i] |= keys[i];

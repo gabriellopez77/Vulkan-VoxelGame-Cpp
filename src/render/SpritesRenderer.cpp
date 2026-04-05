@@ -5,9 +5,9 @@
 
 
 void rk::SpritesRenderer::start() {
-    ubo.create(128);
+    //ubo.create(128);
 
-    vertexBuffer.create(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, sizeof(SPRITES_INDICES), SPRITES_INDICES);
+    //vertexBuffer.create(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, sizeof(SPRITES_INDICES), SPRITES_INDICES);
 
     //descriptorSet.addUbo(ubo, 0, rk::ShaderStage::VERTEX);
     //descriptorSet.addSampler(*tex, 1, rk::ShaderStage::FRAGMENT);
@@ -19,12 +19,12 @@ void rk::SpritesRenderer::start() {
     pipelineSettings.enableDepthTest = true;
 
     pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.spv", SHADERS_FOLDER"/fragment.spv");
-    pipelineSettings.addDynamicState(rk::DynamicState::VIEWPORT);
-    pipelineSettings.addDynamicState(rk::DynamicState::SCISSOR);
+    //pipelineSettings.addDynamicState(rk::DynamicState::VIEWPORT);
+    //pipelineSettings.addDynamicState(rk::DynamicState::SCISSOR);
 
-    pipelineSettings.addBindings(0, rk::VertexInputRate::VERTEX, sizeof(f32) * 4);
-    pipelineSettings.addAttributes(0, rk::Formats::RG_F32, 0);
-    pipelineSettings.addAttributes(1, rk::Formats::RG_F32, 2 * sizeof(f32));
+    //pipelineSettings.addBindings(0, rk::VertexInputRate::VERTEX, sizeof(f32) * 4);
+    //pipelineSettings.addAttributes(0, rk::Formats::RG_F32, 0);
+    //pipelineSettings.addAttributes(1, rk::Formats::RG_F32, 2 * sizeof(f32));
 
     pipelineSettings.addDescriptorSet(descriptorSet);
     pipelineSettings.addPushConstant(0, 64, rk::ShaderStage::VERTEX);
@@ -40,7 +40,7 @@ void rk::SpritesRenderer::draw() {
         return;
 
     //descriptorSet.bind
-    ubo.updateAll(0, buffer.sizeInBytes(), buffer.data());
+    //ubo.updateAll(0, buffer.sizeInBytes(), buffer.data());
     vkCmdDrawIndexed(nullptr, std::size(rk::SPRITES_INDICES), instancesCount, 0, 0, 0);
 
     buffer.clear();

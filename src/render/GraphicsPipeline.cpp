@@ -7,15 +7,17 @@
 
 #include "core/VulkanApp.h"
 #include "PipelineSettings.h"
-#include "VulkanEnums.h"
 
 
 static VkShaderModule createShaderModule(const char* path, VkDevice device);
 static std::vector<char> readShaderFile(const char* filePath);
 
 void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
-    m_usePushConstant = settings.pushConstantRange != nullptr;
-    m_pushConstantShaderStage = (ShaderStage)settings.pushConstantRange->stageFlags;
+    if (m_usePushConstant) {
+        m_pushConstantShaderStage = (ShaderStage)settings.pushConstantRange->stageFlags;
+        m_usePushConstant = true;
+    }
+
 
     auto logicalDevice = vulkanApp::getLogicalDevice();
 
@@ -117,8 +119,8 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = settings.descriptorSets.size();
     pipelineLayoutInfo.pSetLayouts = settings.descriptorSets.data();
-    pipelineLayoutInfo.pushConstantRangeCount = settings.pushConstantRange != nullptr;
-    pipelineLayoutInfo.pPushConstantRanges = settings.pushConstantRange;
+    pipelineLayoutInfo.pushConstantRangeCount = (u32)m_usePushConstant;
+    pipelineLayoutInfo.pPushConstantRanges = m_usePushConstant ? settings.pushConstantRange : nullptr;
 
     if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
         assert(false && "failed to create pipeline layout!");

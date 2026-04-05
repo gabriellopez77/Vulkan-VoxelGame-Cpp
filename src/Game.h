@@ -3,6 +3,8 @@
 #include "render/DescriptorSet.h"
 #include "render/GraphicsPipeline.h"
 #include "render/VertexBuffer.h"
+#include "render/AttributesObject.h"
+
 #include "world/player/Player.h"
 
 
@@ -19,8 +21,8 @@ public:
     Player player;
 
 private:
-    rk::VertexBuffer vertexBuffer1;
-    rk::VertexBuffer vertexBuffer2;
+    //rk::VertexBuffer vertexBuffer;
+    rk::AttributesObject attributesObject;
     rk::GraphicsPipeline pipeline;
     rk::DescriptorSet descriptorSet;
 

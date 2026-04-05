@@ -8,7 +8,6 @@
 
 #include "core/Utils.h"
 #include "core/VulkanApp.h"
-#include "VulkanEnums.h"
 #include "resources/TextureAtlas.h"
 
 

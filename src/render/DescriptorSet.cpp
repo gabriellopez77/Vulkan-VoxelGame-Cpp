@@ -67,16 +67,15 @@ void rk::DescriptorSet::create() {
                 // create in heap because it is passed by reference
                 auto bufferInfo = std::make_unique<VkDescriptorBufferInfo>();
                 bufferInfo->offset = 0;
-
-                Ubo* buffer = nullptr;
                 
-                if (info.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                    buffer = &m_ubos[info.uboIndex];
-                else
-                    buffer = &m_dynamicUbos[info.uboIndex];
-
-                bufferInfo->buffer = buffer->getBuffer(i);
-                bufferInfo->range = buffer->getSize();
+                if (info.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                    bufferInfo->buffer = m_ubos[info.uboIndex].getBuffer(i);
+                    bufferInfo->range = m_ubos[info.uboIndex].getSize();
+                }
+                else {
+                    bufferInfo->buffer = m_dynamicUbos[info.uboIndex].buffer.getBuffer(i);
+                    bufferInfo->range = m_dynamicUbos[info.uboIndex].sliceSize;
+                }
 
                 writer.pBufferInfo = bufferInfo.get();
 
@@ -110,7 +109,7 @@ void rk::DescriptorSet::create() {
 
 void rk::DescriptorSet::bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout) {
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-        &m_descriptorSets[vulkanApp::getCurrentFrame()], (u32)m_offsets.size(), m_offsetsMask.data());
+        &m_descriptorSets[vulkanApp::getCurrentFrame()], (u32)m_dynamicUbos.size(), m_offsetsMask.data());
 
     // reset offsets mask
     for (auto i = 0; i < m_offsetsMask.size(); i++)
@@ -146,49 +145,46 @@ i32 rk::DescriptorSet::addUbo(u64 size, u32 binding, ShaderStage stage) {
     return index;
 }
 
-i32 rk::DescriptorSet::addDynamicUbo() {
+i32 rk::DescriptorSet::addDynamicUbo(u32 sliceSize) {
     m_dynamicUboOffset = 0;
     m_dynamicUboIndex = m_dynamicUbos.size();
 
-    m_offsets.push_back({});
+    m_dynamicUbos.push_back({ {}, {}, sliceSize });
     m_offsetsMask.push_back(0);
 
     return m_dynamicUboIndex;
 }
 
-u32 rk::DescriptorSet::addDynamicUboOffset(u64 size) {
+u32 rk::DescriptorSet::addDynamicUboOffset() {
+    u32 index = m_dynamicUbos[m_dynamicUboIndex].offsets.size();
     u32 offset = m_dynamicUboOffset;
 
-    const auto alignedSize = vulkanApp::getProperties().limits.minUniformBufferOffsetAlignment;
-    //m_dynamicUboOffset += math::alignUp(size, d);
-    m_dynamicUboOffset += (size + alignedSize - 1) & ~(alignedSize - 1);
+    static const u32 alignedSize = (u32)vulkanApp::getProperties().limits.minUniformBufferOffsetAlignment;
 
-    m_offsets[m_dynamicUboIndex].push_back(offset);
+    // aligns the offset by alignedSize
+    m_dynamicUboOffset += math::alignUp(m_dynamicUbos[m_dynamicUboIndex].sliceSize, alignedSize);
 
-    return offset;
+    m_dynamicUbos[m_dynamicUboIndex].offsets.push_back(offset);
+
+    return index;
 }
 
-void rk::DescriptorSet::updateDynamicUbo(i32 dynamicUboIndex, i32 dynamicUboOffsetIndex, u32 additionalOffset, u64 size, const void* data) {
-    u32 offset = m_offsets[dynamicUboIndex][dynamicUboOffsetIndex];
+void rk::DescriptorSet::updateDynamicUbo(i32 uboIndex, i32 offsetIndex, u32 additionalOffset, u64 size, const void* data) {
+    u32 offset = m_dynamicUbos[uboIndex].offsets[offsetIndex];
 
     assert(math::isAligned(offset, (u32)vulkanApp::getProperties().limits.minUniformBufferOffsetAlignment));
 
-    m_dynamicUbos[dynamicUboIndex].update(offset + additionalOffset, size, data);
+    m_dynamicUbos[uboIndex].buffer.update(offset + additionalOffset, size, data);
 }
 
 void rk::DescriptorSet::createDynamicUbo(u32 binding, ShaderStage stage) {
-    i32 index = m_dynamicUbos.size();
-
     LayoutInfo layout{};
-    layout.uboIndex = index;
+    layout.uboIndex = m_dynamicUboIndex;
     layout.binding = binding;
     layout.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     layout.shaderStage = stage;
 
     m_layouts.push_back(layout);
 
-    rk::Ubo ubo;
-    ubo.create(m_dynamicUboOffset);
-
-    m_dynamicUbos.push_back(ubo);
+    m_dynamicUbos[m_dynamicUboIndex].buffer.create(m_dynamicUboOffset);
 }

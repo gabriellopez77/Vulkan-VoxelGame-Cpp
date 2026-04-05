@@ -1,29 +1,34 @@
 #include "PipelineSettings.h"
 
 #include "DescriptorSet.h"
-#include "VulkanEnums.h"
+#include "AttributesObject.h"
 
 
-void rk::PipelineSettings::addDynamicState(DynamicState state) { dynamicStates.push_back((VkDynamicState)state); }
+void rk::PipelineSettings::AddAttributesObject(const AttributesObject& attributesObject) {
+    const auto& attributes = attributesObject.getAttributesInfo();
+    const auto& bindings = attributesObject.getBuffersInfo();
 
-void rk::PipelineSettings::addBindings(u32 binding, VertexInputRate inputRate, u32 stride) {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = binding;
-    bindingDescription.inputRate = (VkVertexInputRate)inputRate;
-    bindingDescription.stride = stride;
+    this->attributes.reserve(attributes.size());
+    this->bindings.reserve(bindings.size());
 
-    this->bindings.push_back(bindingDescription);
-    m_currentBinding = binding;
-}
+    for (const auto& attribute : attributes) {
+        VkVertexInputAttributeDescription attributeDescription{};
+        attributeDescription.location = attribute.location;
+        attributeDescription.binding = attribute.binding;
+        attributeDescription.format = (VkFormat)attribute.format;
+        attributeDescription.offset = attribute.offset;
 
-void rk::PipelineSettings::addAttributes(u32 location, Formats format, u32 stride) {
-    VkVertexInputAttributeDescription attribute;
-    attribute.location = location;
-    attribute.binding = m_currentBinding;
-    attribute.format = (VkFormat)format;
-    attribute.offset = stride;
+        this->attributes.push_back(attributeDescription);
+    }
 
-    attributes.push_back(attribute);
+    for (const auto& binding : bindings) {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = binding.binding;
+        bindingDescription.inputRate = (VkVertexInputRate)binding.inputRate;
+        bindingDescription.stride = binding.stride;
+
+        this->bindings.push_back(bindingDescription);
+    }
 }
 
 void rk::PipelineSettings::addPushConstant(u32 offset, u32 size, ShaderStage stage) {

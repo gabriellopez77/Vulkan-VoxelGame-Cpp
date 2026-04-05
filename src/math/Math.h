@@ -23,8 +23,9 @@ namespace math {
     extern float tan(f32 value);
 
     // aligns the value to alignment
-    constexpr inline i32 alignUp(i32 value, i32 alignment) { return ((value + alignment - 1) / alignment) * value; };
-    constexpr inline u32 alignUp(u32 value, u32 alignment) { return ((value + alignment - 1) / alignment) * value; };
+    constexpr inline i32 alignUp(i32 value, i32 alignment) { return ((value + alignment - 1) / alignment) * alignment; };
+    constexpr inline u32 alignUp(u32 value, u32 alignment) { return ((value + alignment - 1) / alignment) * alignment;
+    };
 
     constexpr inline bool isAligned(i32 value, i32 alignment) { return (value % alignment) == 0; }
     constexpr inline bool isAligned(u32 value, u32 alignment) { return (value % alignment) == 0; }

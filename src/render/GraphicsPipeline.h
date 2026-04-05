@@ -1,15 +1,13 @@
 #pragma once
 
-#include "Defs.h"
 
 #include "core/VulkanFwd.h"
+#include "VulkanEnums.h"
 
 
 namespace rk {
-    //fwd
     class SwapChain;
     class PipelineSettings;
-    enum class ShaderStage : i32;
 
     class GraphicsPipeline {
     public:

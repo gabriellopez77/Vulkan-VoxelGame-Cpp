@@ -6,7 +6,6 @@
 #include <vulkan/vulkan.h>
 
 #include "core/VulkanApp.h"
-#include "VulkanEnums.h"
 
 
 void rk::Ubo::create(u64 size) {
