@@ -2,46 +2,48 @@
 
 #include "PipelineSettings.h"
 #include "VulkanEnums.h"
+#include "render/core/VulkanApp.h"
 
 
-void rk::SpritesRenderer::start() {
-    //ubo.create(128);
+void rk::SpritesRenderer::start(const DescriptorSet& descriptorSet) {
+    attributesObject.addVertexBuffer(sizeof(f32) * 4, VertexInputRate::VERTEX, nullptr)
+        .createVertices(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, UpdateType::ONE_TIME)
+        .createIndices(sizeof(SPRITES_INDICES), SPRITES_INDICES, UpdateType::ONE_TIME);
+    attributesObject.setAttributes(0, Formats::RGBA_F32, 0);
 
-    //vertexBuffer.create(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, sizeof(SPRITES_INDICES), SPRITES_INDICES);
+    attributesObject.addVertexBuffer(sizeof(SpriteVertices), VertexInputRate::INSTANCE, nullptr)
+        .createVertices(sizeof(SpriteVertices) * MAX_SPRITES_COUNT, nullptr, UpdateType::OFTEN);
+    attributesObject.setAttributes(1, Formats::RG_F32, offsetof(SpriteVertices, position));
+    attributesObject.setAttributes(2, Formats::RG_F32, offsetof(SpriteVertices, size));
+    attributesObject.setAttributes(3, Formats::RGBA_F32, offsetof(SpriteVertices, uv));
+    attributesObject.setAttributes(4, Formats::RGBA_U8, offsetof(SpriteVertices, color));
+    attributesObject.setAttributes(5, Formats::R_F32, offsetof(SpriteVertices, depth));
 
-    //descriptorSet.addUbo(ubo, 0, rk::ShaderStage::VERTEX);
-    //descriptorSet.addSampler(*tex, 1, rk::ShaderStage::FRAGMENT);
-    //descriptorSet.create();
-
-    rk::PipelineSettings pipelineSettings;
-    pipelineSettings.cullMode = rk::CullMode::DISABLE;
+    PipelineSettings pipelineSettings;
+    pipelineSettings.cullMode = CullMode::DISABLE;
     pipelineSettings.enableBlending = true;
-    pipelineSettings.enableDepthTest = true;
-
-    pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.spv", SHADERS_FOLDER"/fragment.spv");
-    //pipelineSettings.addDynamicState(rk::DynamicState::VIEWPORT);
-    //pipelineSettings.addDynamicState(rk::DynamicState::SCISSOR);
-
-    //pipelineSettings.addBindings(0, rk::VertexInputRate::VERTEX, sizeof(f32) * 4);
-    //pipelineSettings.addAttributes(0, rk::Formats::RG_F32, 0);
-    //pipelineSettings.addAttributes(1, rk::Formats::RG_F32, 2 * sizeof(f32));
-
+    pipelineSettings.enableDepthTest = false;
+    pipelineSettings.setShaders(SHADERS_FOLDER"/sprites.vspv", SHADERS_FOLDER"/sprites.fspv");
+    pipelineSettings.addDynamicState({ DynamicState::VIEWPORT, DynamicState::SCISSOR });
+    pipelineSettings.AddAttributesObject(attributesObject);
     pipelineSettings.addDescriptorSet(descriptorSet);
-    pipelineSettings.addPushConstant(0, 64, rk::ShaderStage::VERTEX);
 
     pipeline.create(pipelineSettings);
 }
 
 void rk::SpritesRenderer::draw() {
+    auto command = rk::vulkanApp::getCurrentCommandBuffer();
 
     u32 instancesCount = buffer.length();
 
     if (instancesCount == 0)
         return;
 
-    //descriptorSet.bind
-    //ubo.updateAll(0, buffer.sizeInBytes(), buffer.data());
-    vkCmdDrawIndexed(nullptr, std::size(rk::SPRITES_INDICES), instancesCount, 0, 0, 0);
+    pipeline.bind(command);
+    attributesObject.bind(command);
+    attributesObject.update(1, buffer.sizeInBytes(), buffer.data());
+
+    vkCmdDrawIndexed(command, std::size(rk::SPRITES_INDICES), instancesCount, 0, 0, 0);
 
     buffer.clear();
 }

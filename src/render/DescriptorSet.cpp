@@ -109,7 +109,7 @@ void rk::DescriptorSet::create() {
 
 void rk::DescriptorSet::bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout) {
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-        &m_descriptorSets[vulkanApp::getCurrentFrame()], (u32)m_dynamicUbos.size(), m_offsetsMask.data());
+        &m_descriptorSets[vulkanApp::getImageIndex()], (u32)m_dynamicUbos.size(), m_offsetsMask.data());
 
     // reset offsets mask
     for (auto i = 0; i < m_offsetsMask.size(); i++)

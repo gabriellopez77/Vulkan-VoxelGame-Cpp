@@ -29,7 +29,8 @@ namespace rk::vulkanApp {
     extern void beginFrame();
     extern void endFrame();
 
-    extern u32 getCurrentFrame();
+    extern u32 getImageIndex();
+
     extern VkDevice getLogicalDevice();
     extern VkQueue getGraphicsQueue();
     extern VkQueue getPresentQueue();

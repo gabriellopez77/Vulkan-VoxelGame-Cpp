@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/vec2.hpp>
+#include "math/Vec2.h"
 
 
 namespace inputs {
@@ -141,10 +141,10 @@ namespace inputs {
 
     extern void newFrame();
 
-	extern glm::vec2 getMousePos();
-	extern glm::vec2 getMouseDelta();
+	extern Vec2 getMousePos();
+	extern Vec2 getMouseDelta();
 
-	extern void setMousePos(glm::vec2 pos);
+	extern void setMousePos(Vec2 pos);
 
     extern void setKeyState(int key, bool state);
 	extern bool isKeyDown(Keys key);

@@ -32,8 +32,17 @@ namespace rk {
             for (int i = 0; i < dynamicStates.size(); i++)
                 this->dynamicStates.push_back((VkDynamicState)dynamicStates[i]);
         }
+
+        void addPushConstant(u32 offset, u32 size, ShaderStage stage) {
+            delete pushConstantRange;
+
+            pushConstantRange = new VkPushConstantRange;
+            pushConstantRange->stageFlags = (VkShaderStageFlags)stage;
+            pushConstantRange->offset = offset;
+            pushConstantRange->size = size;
+        }
+
         void AddAttributesObject(const AttributesObject& attributesObject);
-        void addPushConstant(u32 offset, u32 size, ShaderStage stage);
         void addDescriptorSet(const DescriptorSet& descriptorSets);
 
         CullMode cullMode = CullMode::BACK;

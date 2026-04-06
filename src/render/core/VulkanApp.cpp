@@ -28,6 +28,7 @@ namespace rk::vulkanApp {
 
     u32 lastFrame = 0;
     u32 currentFrame = 0;
+    u32 currentImageIndex = 0; // the same image index obtained from getOneImage in begin frame
 
     // commands
     VkDescriptorPool descriptorPool = nullptr;
@@ -54,7 +55,7 @@ namespace rk::vulkanApp {
     VkFence imagesInFlight[utl::FRAMES_COUNT] = {};
 
 
-    u32 getCurrentFrame() { return currentFrame; }
+    u32 getImageIndex() { return currentImageIndex; }
 
     VkDevice getLogicalDevice() { return logicalDevice; }
     VkQueue getGraphicsQueue() { return graphicsQueue; }
@@ -445,12 +446,12 @@ namespace rk::vulkanApp {
         vkWaitForFences(logicalDevice, 1, &inFlightFence[currentFrame], VK_TRUE, UINT64_MAX);
 
         // get next image from swapChain
-        u32 imageIndex = swapChain.getOneImage(logicalDevice, imageAvailableSemaphore[currentFrame]);
+        currentImageIndex = swapChain.getOneImage(logicalDevice, imageAvailableSemaphore[currentFrame]);
 
-        if (imagesInFlight[imageIndex] != nullptr)
-            vkWaitForFences(logicalDevice, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+        if (imagesInFlight[currentImageIndex] != nullptr)
+            vkWaitForFences(logicalDevice, 1, &imagesInFlight[currentImageIndex], VK_TRUE, UINT64_MAX);
 
-        imagesInFlight[swapChain.getImageIndex()] = inFlightFence[currentFrame];
+        imagesInFlight[currentImageIndex] = inFlightFence[currentFrame];
 
         // reset fence state
         vkResetFences(logicalDevice, 1, &inFlightFence[currentFrame]);
@@ -477,7 +478,7 @@ namespace rk::vulkanApp {
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChain.getFramebuffer(imageIndex);
+        renderPassInfo.framebuffer = swapChain.getFramebuffer(currentImageIndex);
         renderPassInfo.renderArea.extent = extent;
         renderPassInfo.clearValueCount = std::size(clearValues);
         renderPassInfo.pClearValues = clearValues;
@@ -521,8 +522,6 @@ namespace rk::vulkanApp {
         if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence[currentFrame]) != VK_SUCCESS)
             assert(false && "failed to submit draw command buffer!");
 
-        // the same image index obtained from getOneImage in begin frame
-        u32 imageIndex = swapChain.getImageIndex();
 
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -530,7 +529,7 @@ namespace rk::vulkanApp {
         presentInfo.pWaitSemaphores = &signalSemaphore;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapChain.get();
-        presentInfo.pImageIndices = &imageIndex;
+        presentInfo.pImageIndices = &currentImageIndex;
 
         vkQueuePresentKHR(presentQueue, &presentInfo);
 

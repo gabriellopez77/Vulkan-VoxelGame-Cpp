@@ -8,7 +8,6 @@
 #include "render/PipelineSettings.h"
 #include "render/core/VulkanApp.h"
 
-
 #include "resources/ArrayBuffer.h"
 #include "resources/TextureManager.h"
 
@@ -50,21 +49,18 @@ void Game::start(Application* application) {
     auto tex = resources::textueManager::get("sla");
 
     descriptorSet.addSampler(tex, 1, rk::ShaderStage::FRAGMENT);
-    uboIndex = descriptorSet.addUbo(sizeof(Matrix4) * 2, 0, rk::ShaderStage::VERTEX);  
+    uboIndex = descriptorSet.addUbo(sizeof(Matrix4) * 3, 0, rk::ShaderStage::VERTEX);  
     descriptorSet.create();
 
-
-
-
     attributesObject.addVertexBuffer(sizeof(VertexData), rk::VertexInputRate::VERTEX, &buffer1Index)
-        .createVertices(sizeof(vertices), vertices, rk::VertexBufferType::ONE_TIME)
-        .createIndices(sizeof(indices), indices, rk::VertexBufferType::ONE_TIME);
+        .createVertices(sizeof(vertices), vertices, rk::UpdateType::ONE_TIME)
+        .createIndices(sizeof(indices), indices, rk::UpdateType::ONE_TIME);
     attributesObject.setAttributes(0, rk::Formats::RG_F32, offsetof(VertexData, vertices));
     attributesObject.setAttributes(1, rk::Formats::RG_F32, offsetof(VertexData, texCoords));
 
 
     attributesObject.addVertexBuffer(sizeof(InstanceData), rk::VertexInputRate::INSTANCE, &buffer2Index)
-       .createVertices(sizeof(InstanceData) * INSTANCE_COUNT, nullptr, rk::VertexBufferType::RAM);
+       .createVertices(sizeof(InstanceData) * INSTANCE_COUNT, nullptr, rk::UpdateType::OFTEN);
     attributesObject.setAttributes(2, rk::Formats::RGB_F32, offsetof(InstanceData, position));
     attributesObject.setAttributes(3, rk::Formats::RGB_F32, offsetof(InstanceData, size));
 
@@ -73,16 +69,17 @@ void Game::start(Application* application) {
     pipelineSettings.enableBlending = true;
     pipelineSettings.enableDepthTest = true;
 
-    pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.spv", SHADERS_FOLDER"/fragment.spv");
+    pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.vspv", SHADERS_FOLDER"/fragment.fspv");
     pipelineSettings.addDynamicState({ rk::DynamicState::VIEWPORT, rk::DynamicState::SCISSOR });
-
     pipelineSettings.AddAttributesObject(attributesObject);
     pipelineSettings.addDescriptorSet(descriptorSet);
 
     pipeline.create(pipelineSettings);
+
+    spritesRenderer.start(descriptorSet);
 }
 
-void Game::update(float dt) {
+void Game::update(f32 dt) {
     player.update(dt);
 }
 
@@ -107,8 +104,18 @@ void Game::render() {
     attributesObject.update(buffer2Index, sizeof(instanceData), instanceData);
 
     vkCmdDrawIndexed(command, std::size(indices), INSTANCE_COUNT, 0, 0, 0);
+    rk::SpriteVertices teste{};
+    teste.size = { 100, 100 };
+    teste.color = { 0, 255, 0, 255 };
+    
+    spritesRenderer.buffer.getEnd() = teste;
+
+    spritesRenderer.draw();
 }
 
-void Game::resize(int width, int height) {
-    player.camera.resize((float)width, (float)height);
+void Game::resize(i32 width, i32 height) {
+    player.camera.resize((f32)width, (f32)height);
+
+    auto orthographic = Matrix4::orthographic(0.f, (f32)width, 0.f, (f32)height, -1.f, 1.f);
+    descriptorSet.updateUboAll(uboIndex, 128, 64, &orthographic);
 }

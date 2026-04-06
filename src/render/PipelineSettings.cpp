@@ -31,15 +31,6 @@ void rk::PipelineSettings::AddAttributesObject(const AttributesObject& attribute
     }
 }
 
-void rk::PipelineSettings::addPushConstant(u32 offset, u32 size, ShaderStage stage) {
-    delete pushConstantRange;
-
-    pushConstantRange = new VkPushConstantRange();
-    pushConstantRange->offset = offset;
-    pushConstantRange->size = size;
-    pushConstantRange->stageFlags = (VkShaderStageFlags)stage;
-}
-
 void rk::PipelineSettings::addDescriptorSet(const DescriptorSet& descriptorSets) {
     this->descriptorSets.push_back(descriptorSets.get());
 }

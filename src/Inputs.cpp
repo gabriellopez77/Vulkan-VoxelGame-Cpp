@@ -5,9 +5,9 @@ namespace inputs {
     bool keys[(int)Keys::LAST_KEY];
 	bool lastKeys[(int)Keys::LAST_KEY];
 
-	glm::vec2 mousePos;
-	glm::vec2 lastMousePos;
-	glm::vec2 mouseDelta;
+	Vec2 mousePos;
+	Vec2 lastMousePos;
+	Vec2 mouseDelta;
 
     void newFrame() {
 		inputs::setMousePos(mousePos);
@@ -18,10 +18,10 @@ namespace inputs {
 		}
     }
 
-	glm::vec2 getMousePos() { return mousePos; }
-	glm::vec2 getMouseDelta() { return mousePos - lastMousePos; }
+	Vec2 getMousePos() { return mousePos; }
+	Vec2 getMouseDelta() { return mousePos - lastMousePos; }
 
-	void setMousePos(glm::vec2 pos) {
+	void setMousePos(Vec2 pos) {
     	lastMousePos = mousePos;
 	    mousePos = pos;
     }

@@ -57,7 +57,7 @@ void Application::run(Game* game) {
 
 
         // calculate delta time
-        float time = (f32)glfwGetTime();
+        f32 time = (f32)glfwGetTime();
         DeltaTime = time - m_lastFrame;
         m_lastFrame = time;
         Time = time;
@@ -101,10 +101,10 @@ void Application::keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 act
     inputs::setKeyState(key, action != GLFW_RELEASE);
 }
 
-void Application::mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+void Application::mouseButtonCallback(GLFWwindow *window, i32 button, i32 action, i32 mods) {
     inputs::setMouseButtonState(button, action != GLFW_RELEASE);
 }
 
-void Application::cursorPosCallback(GLFWwindow* window, double x, double y) {
-    inputs::setMousePos({ (float)x, (float)y });
+void Application::cursorPosCallback(GLFWwindow* window, f64 x, f64 y) {
+    inputs::setMousePos({ (f32)x, (f32)y });
 }

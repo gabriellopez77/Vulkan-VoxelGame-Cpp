@@ -2,6 +2,7 @@
 
 #include "Math.h"
 #include "Vec3.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 
 Matrix4 Matrix4::lookAt(const Vec3& eye, const Vec3& target, const Vec3& up) {
@@ -25,26 +26,22 @@ Matrix4 Matrix4::lookAt(const Vec3& eye, const Vec3& target, const Vec3& up) {
 
     return result;
 }
-Matrix4 Matrix4::orthographic(float left, float right, float bottom, float top, float near, float far) {
-    Matrix4 result(0.f);
 
-    float invRL = 1.0f / (right - left);
-    float invTB = 1.0f / (top - bottom);
-    float invFN = 1.0f / (far - near);
+Matrix4 Matrix4::orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far) {
+    Matrix4 result(1.f);
+    //glm::ortho(0.f, 0.f, 0.f, 0.f);
 
-    result[0].x = 2.f * invRL;
-    result[1].y = 2.f * invTB;
-    result[2].z = -2.f * invFN;
-
-    result[3].x = -(right + left) * invRL;
-    result[3].y = -(top + bottom) * invTB;
-    result[3].z = -(far + near) * invFN;
+    result[0].x = 2.f / (right - left);
+    result[1].y = 2.f / (top - bottom);
+    result[2].z = -1.f;
+    result[3].x = -(right + left) / (right - left);
+    result[3].y = -(top + bottom) / (top - bottom);
 
     return result;
 }
 
-Matrix4 Matrix4::perspective(float fov, float aspect, float near, float far) {
-    const float tanHalfFov = math::tan(fov / 2.f);
+Matrix4 Matrix4::perspective(f32 fov, f32 aspect, f32 near, f32 far) {
+    const f32 tanHalfFov = math::tan(fov / 2.f);
 
     Matrix4 result(0.f);
     result[0].x = 1.f / (aspect * tanHalfFov);
@@ -74,10 +71,10 @@ void Matrix4::scale(const Vec3& scale) {
     *this = result;
 }
 
-void Matrix4::rotate(float angle, const Vec3& v) {
-    const float a = math::radians(angle);
-    const float c = math::cos(a);
-    const float s = math::sin(a);
+void Matrix4::rotate(f32 angle, const Vec3& v) {
+    const f32 a = math::radians(angle);
+    const f32 c = math::cos(a);
+    const f32 s = math::sin(a);
 
     const Vec3 axis = Vec3::normalize(v);
     const Vec3 temp(axis * (1 - c));

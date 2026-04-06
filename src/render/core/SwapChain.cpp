@@ -144,13 +144,14 @@ SupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surfa
     return details;
 }
 
-u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) {
-    auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, nullptr, &m_currentImageIndex);
+u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) const {
+    u32 imageIndex = 0;
+    auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, nullptr, &imageIndex);
 
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR)
         assert(false && "failed to acquire swap chain image!");
 
-    return m_currentImageIndex;
+    return imageIndex;
 }
 
 void rk::SwapChain::clear() const {

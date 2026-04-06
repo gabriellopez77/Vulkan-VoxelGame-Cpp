@@ -3,26 +3,29 @@
 #include "Color3b.h"
 
 
-struct Color4b
-{
-    Color4b(Color3b color, u8 a)
-    {
+struct Color4b {
+    Color4b() {
+        r = 0;
+        g = 0;
+        b = 0;
+        a = 0;
+    }
+
+    Color4b(Color3b color, u8 a) {
         r = color.r;
         g = color.g;
         b = color.b;
         this->a = a;
     }
     
-    Color4b(u8 r, u8 g, u8 b, u8 a)
-    {
+    Color4b(u8 r, u8 g, u8 b, u8 a) {
         this->r = r;
         this->g = g;
         this->b = b;
         this->a = a;
     }
     
-    Color4b(u8 color)
-    { 
+    Color4b(u8 color) { 
         r = color; 
         g = color; 
         b = color;

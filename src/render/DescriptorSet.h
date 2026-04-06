@@ -36,6 +36,10 @@ namespace rk {
             m_ubos[uboIndex].update(offset, size, data);
         }
 
+        void updateUboAll(i32 uboIndex, u64 offset, u64 size, const void* data) {
+            m_ubos[uboIndex].updateAll(offset, size, data);
+        }
+
 
         i32 addDynamicUbo(u32 sliceSize);
         u32 addDynamicUboOffset();
@@ -52,11 +56,8 @@ namespace rk {
         std::vector<Ubo> m_ubos;
         std::vector<DynamicUboInfo> m_dynamicUbos;
         std::vector<LayoutInfo> m_layouts;
-
-        // dynamic buffers offsets
-        //std::vector<> m_dynamicUbosInfo;
       
-        // used for enable offsets used by draw call
+        // used for enable dynamic offsets used by draw call
         std::vector<u32> m_offsetsMask;
 
         // current dynamic ubo offset

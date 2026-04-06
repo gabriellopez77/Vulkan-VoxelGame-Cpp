@@ -8,22 +8,36 @@
 #include "VulkanEnums.h"
 
 
-rk::VertexBuffer& rk::VertexBuffer::createVertices(u32 size, const void* data, VertexBufferType updateType) {
-    m_verticesInfo = {};
+rk::VertexBuffer& rk::VertexBuffer::createVertices(u32 size, const void* data, UpdateType updateType) {
+    m_verticesUpdateType = updateType;
+    m_verticesBufferSize = size;
 
-    m_verticesInfo.updateType = updateType;
-    m_verticesInfo.size = size;
-    createSendBuffer(data, m_verticesInfo, BufferUsage::VERTEX_BUFFER);
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        m_verticesInfo[i] = {};
+
+        createSendBuffer(size, data, m_verticesInfo[i], updateType, BufferUsage::VERTEX_BUFFER);
+
+        // if buffer is one time then do not make buffer copies
+        if (updateType == UpdateType::ONE_TIME)
+            break;
+    }
 
     return *this;
 }
 
-rk::VertexBuffer& rk::VertexBuffer::createIndices(u32 size, const u32* data, VertexBufferType updateType) {
-    m_indicesInfo = {};
+rk::VertexBuffer& rk::VertexBuffer::createIndices(u32 size, const u32* data, UpdateType updateType) {
+    m_indicesUpdateType = updateType;
+    m_indicesBufferSize = size;
 
-    m_indicesInfo.updateType = updateType;
-    m_indicesInfo.size = size;
-    createSendBuffer(data, m_indicesInfo, BufferUsage::INDEX_BUFFER);
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        m_indicesInfo[i] = {};
+
+        createSendBuffer(size, data, m_indicesInfo[i], updateType, BufferUsage::INDEX_BUFFER);
+
+        // if buffer is one time then do not make buffer copies
+        if (updateType == UpdateType::ONE_TIME)
+            break;
+    }
 
     return *this;
 }
@@ -31,69 +45,100 @@ rk::VertexBuffer& rk::VertexBuffer::createIndices(u32 size, const u32* data, Ver
 void rk::VertexBuffer::destroy() const {
     VkDevice device = vulkanApp::getLogicalDevice();
 
-    if (m_verticesInfo.updateType == VertexBufferType::RAM)
-        vkUnmapMemory(vulkanApp::getLogicalDevice(), m_verticesInfo.memory);
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        if (m_verticesUpdateType == UpdateType::OFTEN)
+            vkUnmapMemory(vulkanApp::getLogicalDevice(), m_verticesInfo[i].memory);
 
-    vkDestroyBuffer(device, m_verticesInfo.buffer, nullptr);
-    vkFreeMemory(device, m_verticesInfo.memory, nullptr);
+        vkDestroyBuffer(device, m_verticesInfo[i].buffer, nullptr);
+        vkFreeMemory(device, m_verticesInfo[i].memory, nullptr);
 
+        // if buffer is one time then do not make buffer copies
+        if (m_verticesUpdateType == UpdateType::ONE_TIME)
+            break;
+    }
 
-    if (m_indicesInfo.updateType == VertexBufferType::RAM)
-        vkUnmapMemory(vulkanApp::getLogicalDevice(), m_indicesInfo.memory);
+    // we dont have indices buffer to free
+    if (m_indicesBufferSize == 0)
+        return;
 
-    vkDestroyBuffer(device, m_indicesInfo.buffer, nullptr);
-    vkFreeMemory(device, m_indicesInfo.memory, nullptr);
+    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        if (m_indicesUpdateType == UpdateType::OFTEN)
+            vkUnmapMemory(vulkanApp::getLogicalDevice(), m_indicesInfo[i].memory);
+
+        vkDestroyBuffer(device, m_indicesInfo[i].buffer, nullptr);
+        vkFreeMemory(device, m_indicesInfo[i].memory, nullptr);
+
+        // if buffer is one time then do not make buffer copies
+        if (m_indicesUpdateType == UpdateType::ONE_TIME)
+            break;
+    }
+
+}
+
+void rk::VertexBuffer::update(u32 size, const void* data) {
+    assert(size <= m_verticesBufferSize);
+
+    update(m_verticesInfo[vulkanApp::getImageIndex()], m_verticesUpdateType, size, data);
+}
+void rk::VertexBuffer::updateIndices(u32 size, const u32* data) {
+    assert(size <= m_indicesBufferSize);
+
+    update(m_indicesInfo[vulkanApp::getImageIndex()], m_indicesUpdateType, size, data);
 }
 
 void rk::VertexBuffer::bind(VkCommandBuffer command, u32 binding) const {
     const u64 offset = 0;
+    const u32 imageIndex = vulkanApp::getImageIndex();
 
-    vkCmdBindVertexBuffers(command, binding, 1, &m_verticesInfo.buffer, &offset);
+    const u32 verticesIndex = m_verticesUpdateType == UpdateType::ONE_TIME ? 0 : imageIndex;
 
-    if (m_indicesInfo.buffer != nullptr)
-        vkCmdBindIndexBuffer(command, m_indicesInfo.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(command, binding, 1, &m_verticesInfo[verticesIndex].buffer, &offset);
+
+    if (m_indicesBufferSize != 0) {
+        const u32 indicesIndex = m_indicesUpdateType == UpdateType::ONE_TIME ? 0 : imageIndex;
+
+        vkCmdBindIndexBuffer(command, m_indicesInfo[indicesIndex].buffer, 0, VK_INDEX_TYPE_UINT32);
+    }
 }
 
-void rk::VertexBuffer::update(BufferInfo& bufferInfo, u32 size, const void* data) {
-    assert(size <= bufferInfo.size);
-
-    if (bufferInfo.updateType == VertexBufferType::RAM) {
+void rk::VertexBuffer::update(BufferInfo& bufferInfo, UpdateType updateType, u32 size, const void* data) {
+    if (updateType == UpdateType::OFTEN) {
         std::memcpy(bufferInfo.mappedMemory, data, size);
     }
     else assert(false && "buffer can not be updated, because it is ONE_TIME");
 }
 
-void rk::VertexBuffer::createSendBuffer(const void* data, BufferInfo& bufferInfo, BufferUsage usage) {
+void rk::VertexBuffer::createSendBuffer(u32 size, const void* data, BufferInfo& bufferInfo, UpdateType updateType, BufferUsage usage) {
     auto logicalDevice = rk::vulkanApp::getLogicalDevice();
 
     // upload data to vram
-    if (bufferInfo.updateType == VertexBufferType::ONE_TIME) {
+    if (updateType == UpdateType::ONE_TIME) {
         assert(data != nullptr);
 
         // create staging buffer
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingMemory;
-        utl::createBuffer(bufferInfo.size, stagingBuffer, stagingMemory, BufferUsage::TRANSFER_SRC,
+        utl::createBuffer(size, stagingBuffer, stagingMemory, BufferUsage::TRANSFER_SRC,
             MemoryType::HOST_VISIBLE | MemoryType::HOST_COHERENT);
 
         // upload data
-        utl::copyDataToStagingBuffer(bufferInfo.size, stagingMemory, data);
+        utl::copyDataToStagingBuffer(size, stagingMemory, data);
 
         // create buffer in VRAM
-        utl::createBuffer(bufferInfo.size, bufferInfo.buffer, bufferInfo.memory,
+        utl::createBuffer(size, bufferInfo.buffer, bufferInfo.memory,
             BufferUsage::TRANSFER_DST | usage, MemoryType::DEVICE_LOCAL);
 
         // copy staging buffer to vram buffer
-        utl::copyBuffer(stagingBuffer, bufferInfo.buffer, bufferInfo.size);
+        utl::copyBuffer(stagingBuffer, bufferInfo.buffer, size);
 
         vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
         vkFreeMemory(logicalDevice, stagingMemory, nullptr);
     }
     else {
-        utl::createBuffer(bufferInfo.size, bufferInfo.buffer, bufferInfo.memory, usage,
+        utl::createBuffer(size, bufferInfo.buffer, bufferInfo.memory, usage,
             MemoryType::HOST_VISIBLE | MemoryType::HOST_COHERENT);
 
-        vkMapMemory(logicalDevice, bufferInfo.memory, 0, bufferInfo.size, 0, &bufferInfo.mappedMemory);
+        vkMapMemory(logicalDevice, bufferInfo.memory, 0, size, 0, &bufferInfo.mappedMemory);
     }
 
 }

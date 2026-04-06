@@ -31,8 +31,8 @@ public:
 private:
     static void resizeCallback(GLFWwindow* window, i32 width, i32 height);
     static void keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods);
-    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-    static void cursorPosCallback(GLFWwindow* window, double x, double y);
+    static void mouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods);
+    static void cursorPosCallback(GLFWwindow* window, f64 x, f64 y);
 
     Game* m_game = nullptr;
 

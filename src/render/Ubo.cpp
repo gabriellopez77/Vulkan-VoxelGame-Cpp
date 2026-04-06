@@ -22,13 +22,13 @@ void rk::Ubo::create(u64 size) {
 }
 
 void rk::Ubo::update(u64 offset, u64 size, const void* data) const {
-    assert(size <= m_size);
+    assert(offset + size <= m_size);
 
-    std::memcpy(static_cast<char*>(m_buffersMapped[vulkanApp::getCurrentFrame()]) + offset, data, size);
+    std::memcpy(static_cast<char*>(m_buffersMapped[vulkanApp::getImageIndex()]) + offset, data, size);
 }
 
 void rk::Ubo::updateAll(u64 offset, u64 size, const void* data) const {
-    assert(size <= m_size);
+    assert(offset + size <= m_size);
 
     for (int i = 0; i < utl::FRAMES_COUNT; i++)
         std::memcpy(static_cast<char*>(m_buffersMapped[i]) + offset, data, size);

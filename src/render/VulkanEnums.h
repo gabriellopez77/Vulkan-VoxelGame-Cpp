@@ -12,6 +12,7 @@ namespace rk {
         RGBA8_SRGB = 43,
         BGRA8_SRGB = 50,
 
+        R_F32 = 100,
         RG_F32 = 103,
         RGB_F32 = 106,
         RGBA_F32 = 109,
@@ -23,6 +24,11 @@ namespace rk {
         RG_U32 = 101,
         RGB_U32 = 104,
         RGBA_U32 = 107,
+
+        R_U8 = 13,
+        RG_U8 = 20,
+        RGB_U8 = 27,
+        RGBA_U8 = 41,
 
         DEPTH_F32 = 126
     };

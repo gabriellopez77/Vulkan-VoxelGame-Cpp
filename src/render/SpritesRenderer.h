@@ -1,22 +1,23 @@
 #pragma once
 
-#include "render/DescriptorSet.h"
 #include "render/GraphicsPipeline.h"
-#include "render/VertexBuffer.h"
+#include "render/AttributesObject.h"
 #include "resources/ArrayBuffer.h"
 #include "VerticesData.h"
 
 
 namespace rk {
+    // fwd
+    class DescriptorSet;
+
     class SpritesRenderer {
     public:
         resources::ArrayBuffer<SpriteVertices> buffer{MAX_SPRITES_COUNT};
 
-        rk::VertexBuffer vertexBuffer;
+        rk::AttributesObject attributesObject;
         rk::GraphicsPipeline pipeline;
-        rk::DescriptorSet descriptorSet;
 
-        void start();
+        void start(const DescriptorSet& descriptorSet);
 
         void draw();
     };

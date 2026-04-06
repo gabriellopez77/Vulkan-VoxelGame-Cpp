@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <fstream>
+#include <iostream>
 
 #include <vulkan/vulkan.h>
 
@@ -66,7 +67,7 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = (VkCullModeFlags)settings.cullMode;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; 
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
     rasterizer.depthBiasClamp = 0.0f; // Optional
@@ -181,6 +182,8 @@ std::vector<char> readShaderFile(const char* filePath) {
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
+        std::cout << "AAAAAAAAAAAAA\n";
+        std::cout << filePath << '\n';
         assert(false && "failed to open shader file!");
     }
 
