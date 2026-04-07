@@ -2,15 +2,13 @@
 
 #include <iostream>
 
-#include "Application.h"
-#include "Inputs.h"
-
 #include "render/PipelineSettings.h"
 #include "render/core/VulkanApp.h"
+#include "render/DescriptorSet.h"
 
 #include "resources/ArrayBuffer.h"
 #include "resources/TextureManager.h"
-
+#include "resources/DescriptorSetManager.h"
 #include "math/Vec2.h"
 
 
@@ -35,22 +33,18 @@ constexpr u32 indices[] = {
     0, 1, 2, 2, 3, 0
 };
 
-i32 uboIndex;
 i32 buffer1Index = 0;
 i32 buffer2Index = 0;
 
 constexpr int INSTANCE_COUNT = 2;
 
+rk::DescriptorSet* globalDescriptor = nullptr;
+
 void Game::start(Application* application) {
     m_application = application;
 
     resources::textueManager::start();
-
-    auto tex = resources::textueManager::get("sla");
-
-    descriptorSet.addSampler(tex, 1, rk::ShaderStage::FRAGMENT);
-    uboIndex = descriptorSet.addUbo(sizeof(Matrix4) * 3, 0, rk::ShaderStage::VERTEX);  
-    descriptorSet.create();
+    resources::descriptorSetManager::start();
 
     attributesObject.addVertexBuffer(sizeof(VertexData), rk::VertexInputRate::VERTEX, &buffer1Index)
         .createVertices(sizeof(vertices), vertices, rk::UpdateType::ONE_TIME)
@@ -63,6 +57,8 @@ void Game::start(Application* application) {
        .createVertices(sizeof(InstanceData) * INSTANCE_COUNT, nullptr, rk::UpdateType::OFTEN);
     attributesObject.setAttributes(2, rk::Formats::RGB_F32, offsetof(InstanceData, position));
     attributesObject.setAttributes(3, rk::Formats::RGB_F32, offsetof(InstanceData, size));
+    
+    globalDescriptor = resources::descriptorSetManager::get("global");
 
     rk::PipelineSettings pipelineSettings;
     pipelineSettings.cullMode = rk::CullMode::DISABLE;
@@ -72,11 +68,12 @@ void Game::start(Application* application) {
     pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.vspv", SHADERS_FOLDER"/fragment.fspv");
     pipelineSettings.addDynamicState({ rk::DynamicState::VIEWPORT, rk::DynamicState::SCISSOR });
     pipelineSettings.AddAttributesObject(attributesObject);
-    pipelineSettings.addDescriptorSet(descriptorSet);
+    pipelineSettings.addDescriptorSet(globalDescriptor);
+
 
     pipeline.create(pipelineSettings);
 
-    spritesRenderer.start(descriptorSet);
+    spritesRenderer.start();
 }
 
 void Game::update(f32 dt) {
@@ -87,14 +84,15 @@ void Game::render() {
     auto command = rk::vulkanApp::getCurrentCommandBuffer();
 
     pipeline.bind(command);
-    descriptorSet.bind(command, pipeline.getLayout());
     attributesObject.bind(command);
 
-    const auto& proj = player.camera.getProjectionMatrix();
-    const auto& view = player.camera.getViewMatrix();
+    const Matrix4 proj = player.camera.getProjectionMatrix();
+    const Matrix4 view = player.camera.getViewMatrix();
+    const auto projView = proj * view;
 
-    descriptorSet.updateUbo(uboIndex, 0, 64, &proj);
-    descriptorSet.updateUbo(uboIndex, 64, 64, &view);
+    globalDescriptor->updateUbo(0, 0, 64, &proj);
+    globalDescriptor->updateUbo(0, 64, 64, &view);
+    globalDescriptor->updateUbo(0, 128, 64, &projView);
 
     InstanceData instanceData[INSTANCE_COUNT] = {
         { {0, 0, -1}, {100, 100, 100} },
@@ -104,6 +102,7 @@ void Game::render() {
     attributesObject.update(buffer2Index, sizeof(instanceData), instanceData);
 
     vkCmdDrawIndexed(command, std::size(indices), INSTANCE_COUNT, 0, 0, 0);
+
     rk::SpriteVertices teste{};
     teste.size = { 100, 100 };
     teste.color = { 0, 255, 0, 255 };
@@ -117,5 +116,5 @@ void Game::resize(i32 width, i32 height) {
     player.camera.resize((f32)width, (f32)height);
 
     auto orthographic = Matrix4::orthographic(0.f, (f32)width, 0.f, (f32)height, -1.f, 1.f);
-    descriptorSet.updateUboAll(uboIndex, 128, 64, &orthographic);
+    resources::descriptorSetManager::get("global")->updateUboAll(0, 192, 64, &orthographic);
 }

@@ -54,7 +54,7 @@ void rk::DescriptorSet::create() {
     std::vector<std::unique_ptr<VkDescriptorBufferInfo>> buffersInfo;
     std::vector<std::unique_ptr<VkDescriptorImageInfo>> imagesInfo;
 
-    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+    for (i32 i = 0; i < utl::FRAMES_COUNT; i++) {
         for (const auto& info : m_layouts) {
             VkWriteDescriptorSet writer{};
             writer.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -105,15 +105,6 @@ void rk::DescriptorSet::create() {
         buffersInfo.clear();
         imagesInfo.clear();
     }
-}
-
-void rk::DescriptorSet::bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout) {
-    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-        &m_descriptorSets[vulkanApp::getImageIndex()], (u32)m_dynamicUbos.size(), m_offsetsMask.data());
-
-    // reset offsets mask
-    for (auto i = 0; i < m_offsetsMask.size(); i++)
-        m_offsetsMask[i] = 0;
 }
 
 void rk::DescriptorSet::addSampler(const Texture* texture, u32 binding, ShaderStage stage) {

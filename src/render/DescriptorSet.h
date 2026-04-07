@@ -27,7 +27,6 @@ namespace rk {
 
     public:
         void create();
-        void bind(VkCommandBuffer command, VkPipelineLayout pipelineLayout);
 
         void addSampler(const Texture* texture, u32 binding, ShaderStage stage);
         i32 addUbo(u64 size, u32 binding, ShaderStage stage);
@@ -40,7 +39,6 @@ namespace rk {
             m_ubos[uboIndex].updateAll(offset, size, data);
         }
 
-
         i32 addDynamicUbo(u32 sliceSize);
         u32 addDynamicUboOffset();
         void createDynamicUbo(u32 binding, ShaderStage stage);
@@ -50,7 +48,15 @@ namespace rk {
             m_offsetsMask[dynamicUboIndex] = m_dynamicUbos[dynamicUboIndex].offsets[offsetIndex];
         }
 
-        VkDescriptorSetLayout get() const { return m_descriptorSetLayout; }
+        void disableDynamicUboOffsets() {
+            for (i32 i = 0; i < m_offsetsMask.size(); i++)
+                m_offsetsMask[i] = 0;
+        }
+
+        const std::vector<u32>& getDynamicUboOffsets() const { return m_offsetsMask; }
+
+        VkDescriptorSetLayout getLayout() const { return m_descriptorSetLayout; }
+        VkDescriptorSet getVkDescriptor(i32 i) const { return m_descriptorSets[i]; }
 
     private:
         std::vector<Ubo> m_ubos;

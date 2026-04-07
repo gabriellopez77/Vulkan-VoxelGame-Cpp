@@ -3,9 +3,10 @@
 #include "PipelineSettings.h"
 #include "VulkanEnums.h"
 #include "render/core/VulkanApp.h"
+#include "resources/DescriptorSetManager.h"
 
 
-void rk::SpritesRenderer::start(const DescriptorSet& descriptorSet) {
+void rk::SpritesRenderer::start() {
     attributesObject.addVertexBuffer(sizeof(f32) * 4, VertexInputRate::VERTEX, nullptr)
         .createVertices(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, UpdateType::ONE_TIME)
         .createIndices(sizeof(SPRITES_INDICES), SPRITES_INDICES, UpdateType::ONE_TIME);
@@ -26,7 +27,7 @@ void rk::SpritesRenderer::start(const DescriptorSet& descriptorSet) {
     pipelineSettings.setShaders(SHADERS_FOLDER"/sprites.vspv", SHADERS_FOLDER"/sprites.fspv");
     pipelineSettings.addDynamicState({ DynamicState::VIEWPORT, DynamicState::SCISSOR });
     pipelineSettings.AddAttributesObject(attributesObject);
-    pipelineSettings.addDescriptorSet(descriptorSet);
+    pipelineSettings.addDescriptorSet(resources::descriptorSetManager::get("global"));
 
     pipeline.create(pipelineSettings);
 }

@@ -17,7 +17,7 @@ namespace rk {
         rk::AttributesObject attributesObject;
         rk::GraphicsPipeline pipeline;
 
-        void start(const DescriptorSet& descriptorSet);
+        void start();
 
         void draw();
     };

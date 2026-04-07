@@ -180,7 +180,7 @@ void resources::TextureAtlas::insertImages(const std::string& directory) {
     }
 }
 
-void resources::TextureAtlas::addImage(const u8* data, const ImageRect& rect, std::string name) {
+void resources::TextureAtlas::addImage(const u8* data, const ImageRect& rect, const std::string& name) {
     // insert image data to atlas data
     addImageData(data, rect);
 
@@ -191,7 +191,7 @@ void resources::TextureAtlas::addImage(const u8* data, const ImageRect& rect, st
         rect.height / (f32)rect.height,
     };
 
-    textures.push_back(std::make_pair(name, coords));
+    textures.emplace_back(name, coords);
 }
 
 void resources::TextureAtlas::addImageData(const u8* data, const ImageRect& rect) const {

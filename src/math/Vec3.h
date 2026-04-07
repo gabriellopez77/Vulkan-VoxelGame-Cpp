@@ -27,6 +27,19 @@ public:
     f32 y;
     f32 z;
 
+    //float& operator[](i32 i) {
+    //    if (i == 0) return x;
+    //    if (i == 1) return y;
+    //    if (i == 2) return z;
+    //    else return w;
+    //}
+    //
+    //const float& operator[](i32 i) const {
+    //    if (i == 0) return x;
+    //    if (i == 1) return y;
+    //    if (i == 2) return z;
+    //    else return w;
+    //}
 
     Vec3 operator+(const Vec3& r) const { return { x + r.x, y + r.y, z + r.z }; }
     Vec3 operator-(const Vec3& r) const { return { x - r.x, y - r.y, z - r.z }; }

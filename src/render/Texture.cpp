@@ -37,7 +37,7 @@ void rk::Texture::create(const void* data, i32  width, i32 height, SamplerFilter
     utl::createBuffer(imageSize, stagingBuffer, stagingBufferMemory, BufferUsage::TRANSFER_SRC,
         MemoryType::HOST_VISIBLE | MemoryType::HOST_COHERENT);
 
-    utl::copyDataToStagingBuffer(imageSize, stagingBufferMemory, data);
+    utl::copyDataToStagingBuffer(imageSize, stagingBufferMemory, data, false);
 
 
 

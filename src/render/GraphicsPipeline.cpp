@@ -2,12 +2,12 @@
 
 #include <cassert>
 #include <fstream>
-#include <iostream>
 
 #include <vulkan/vulkan.h>
 
 #include "core/VulkanApp.h"
 #include "PipelineSettings.h"
+#include "DescriptorSet.h"
 
 
 static VkShaderModule createShaderModule(const char* path, VkDevice device);
@@ -19,6 +19,7 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
         m_usePushConstant = true;
     }
 
+    m_descriptorSets = settings.descriptorSets;
 
     auto logicalDevice = vulkanApp::getLogicalDevice();
 
@@ -119,7 +120,7 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = settings.descriptorSets.size();
-    pipelineLayoutInfo.pSetLayouts = settings.descriptorSets.data();
+    pipelineLayoutInfo.pSetLayouts = settings.descriptorSetsLayout.data();
     pipelineLayoutInfo.pushConstantRangeCount = (u32)m_usePushConstant;
     pipelineLayoutInfo.pPushConstantRanges = m_usePushConstant ? settings.pushConstantRange : nullptr;
 
@@ -152,8 +153,24 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
     vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
 }
 
-void rk::GraphicsPipeline::bind(VkCommandBuffer command) const {
+void rk::GraphicsPipeline::bind(VkCommandBuffer command) {
+    for (auto* descriptor : m_descriptorSets) {
+        const auto& dynamicUbos = descriptor->getDynamicUboOffsets();
+
+        for (i32 i = 0; i < dynamicUbos.size(); i++)
+            m_dynamicUboOffsets.push_back(dynamicUbos[i]);
+
+        descriptor->disableDynamicUboOffsets();
+    }
+
+
+    vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0,
+        (u32)m_descriptorSets.size(), m_vkDescriptorSets[vulkanApp::getImageIndex()].data(),
+        (u32)m_dynamicUboOffsets.size(), m_dynamicUboOffsets.data());
+
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+    m_dynamicUboOffsets.clear();
 }
 
 void rk::GraphicsPipeline::bindPushConstant(VkCommandBuffer command, u64 size, const void* data) const {
@@ -181,11 +198,8 @@ std::vector<char> readShaderFile(const char* filePath) {
     // open the file at the end to get the file size
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
-    if (!file.is_open()) {
-        std::cout << "AAAAAAAAAAAAA\n";
-        std::cout << filePath << '\n';
+    if (!file.is_open())
         assert(false && "failed to open shader file!");
-    }
 
     // get file size and allocate a buffer for it
     u64 fileSize = file.tellg();

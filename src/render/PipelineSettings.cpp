@@ -31,6 +31,7 @@ void rk::PipelineSettings::AddAttributesObject(const AttributesObject& attribute
     }
 }
 
-void rk::PipelineSettings::addDescriptorSet(const DescriptorSet& descriptorSets) {
-    this->descriptorSets.push_back(descriptorSets.get());
+void rk::PipelineSettings::addDescriptorSet(DescriptorSet* descriptorSet) {
+    this->descriptorSets.push_back(descriptorSet);
+    this->descriptorSetsLayout.push_back(descriptorSet->getLayout());
 }

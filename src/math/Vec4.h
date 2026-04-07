@@ -31,6 +31,19 @@ public:
     f32 z;
     f32 w;
 
+    //float& operator[](i32 i) {
+    //    if (i == 0) return x;
+    //    if (i == 1) return y;
+    //    if (i == 2) return z;
+    //    else return w;
+    //}
+    //
+    //const float& operator[](i32 i) const {
+    //    if (i == 0) return x;
+    //    if (i == 1) return y;
+    //    if (i == 2) return z;
+    //    else return w;
+    //}
 
     Vec4 operator+(const Vec4& r) const { return { x + r.x, y + r.y, z + r.z, w + r.w }; }
     Vec4 operator-(const Vec4& r) const { return { x - r.x, y - r.y, z - r.z, w - r.w }; }

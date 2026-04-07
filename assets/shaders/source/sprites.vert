@@ -10,6 +10,7 @@ layout (location = 5) in float aLayer;
 uniform layout(binding = 0) sla {
     mat4 camProj;
     mat4 camView;
+        mat4 camProjView;
     mat4 spritesProj;
 } ubo;
 

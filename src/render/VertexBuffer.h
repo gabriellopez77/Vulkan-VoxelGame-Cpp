@@ -6,13 +6,25 @@
 namespace rk {
     enum class UpdateType {
         ONE_TIME,
-        OFTEN
+        SOMETIMES,
+        OFTEN,
     };
 
     class VertexBuffer {
         struct BufferInfo {
+            // if ONE_TIMES or OFTEN then it is nullptr
+            // if SOMETIMES then it is staging buffer used to copy data to vram buffer
+            VkBuffer stagingBuffer;
+            VkDeviceMemory stagingMemory;
+
+            // if ONE_TIME or SOMETIMES then it is vram buffer
+            // if OFTEN then it is host local buffer
             VkBuffer buffer;
             VkDeviceMemory memory;
+
+            // if ONE_TIMES then it is nullptr
+            // if SOMETIMES then it is staging buffer mapped memory
+            // if OFTEN then it is buffer mapped memory
             void* mappedMemory;
         };
 
@@ -28,7 +40,7 @@ namespace rk {
 
     private:
         void update(BufferInfo& bufferInfo, UpdateType updateType, u32 size, const void* data);
-        void createSendBuffer(u32 size, const void* data, BufferInfo& bufferInfo, UpdateType updateType, BufferUsage usage);
+        void createOrSendBuffer(u32 size, const void* data, BufferInfo& bufferInfo, UpdateType updateType, BufferUsage usage);
 
         u32 m_verticesBufferSize = 0;
         UpdateType m_verticesUpdateType{};

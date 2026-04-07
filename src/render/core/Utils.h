@@ -26,7 +26,7 @@ namespace rk::utl {
 
     extern void createBuffer(u64 size, VkBuffer& buffer, VkDeviceMemory& memory, BufferUsage usage, MemoryType memoryType);
     extern void copyBuffer(VkBuffer src, VkBuffer dst, u64 size);
-    extern void copyDataToStagingBuffer(u64 size, VkDeviceMemory memoryType, const void* data);
+    extern void* copyDataToStagingBuffer(u64 size, VkDeviceMemory memoryType, const void* data, bool keepMapped);
     extern void copyBufferToImage(u32 width, u32 height, VkBuffer buffer, VkImage image);
 
     extern void createImage(u32 width, u32 height, VkImage& image, VkDeviceMemory& memory, Formats format, MemoryType memoryType, ImageUsage usageFlags);

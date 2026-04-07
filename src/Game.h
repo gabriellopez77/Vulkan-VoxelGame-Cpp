@@ -1,9 +1,5 @@
 #pragma once
 
-#include "render/DescriptorSet.h"
-//#include "render/GraphicsPipeline.h"
-//#include "render/AttributesObject.h"
-
 #include "render/SpritesRenderer.h"
 
 #include "world/player/Player.h"
@@ -11,6 +7,11 @@
 
 // fwd
 class Application;
+
+//namespace rk {
+//    // fwd
+//    class DescriptorSet;
+//}
 
 class Game {
 public:
@@ -25,7 +26,6 @@ private:
     rk::SpritesRenderer spritesRenderer;
     rk::AttributesObject attributesObject;
     rk::GraphicsPipeline pipeline;
-    rk::DescriptorSet descriptorSet;
 
     Application* m_application = nullptr;
 

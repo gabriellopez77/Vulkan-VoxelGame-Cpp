@@ -1,6 +1,7 @@
 #include "TextureManager.h"
 
 #include <unordered_map>
+#include <cassert>
 
 #include "render/Texture.h"
 
@@ -23,8 +24,7 @@ namespace resources::textueManager {
     const rk::Texture* get(const char* name) {
         auto it = textures.find(name);
 
-        if (it == textures.end())
-            return nullptr;
+        assert(it != textures.end());
 
         return it->second;
     }

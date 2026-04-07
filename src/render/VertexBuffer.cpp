@@ -15,7 +15,7 @@ rk::VertexBuffer& rk::VertexBuffer::createVertices(u32 size, const void* data, U
     for (int i = 0; i < utl::FRAMES_COUNT; i++) {
         m_verticesInfo[i] = {};
 
-        createSendBuffer(size, data, m_verticesInfo[i], updateType, BufferUsage::VERTEX_BUFFER);
+        createOrSendBuffer(size, data, m_verticesInfo[i], updateType, BufferUsage::VERTEX_BUFFER);
 
         // if buffer is one time then do not make buffer copies
         if (updateType == UpdateType::ONE_TIME)
@@ -32,7 +32,7 @@ rk::VertexBuffer& rk::VertexBuffer::createIndices(u32 size, const u32* data, Upd
     for (int i = 0; i < utl::FRAMES_COUNT; i++) {
         m_indicesInfo[i] = {};
 
-        createSendBuffer(size, data, m_indicesInfo[i], updateType, BufferUsage::INDEX_BUFFER);
+        createOrSendBuffer(size, data, m_indicesInfo[i], updateType, BufferUsage::INDEX_BUFFER);
 
         // if buffer is one time then do not make buffer copies
         if (updateType == UpdateType::ONE_TIME)
@@ -62,6 +62,9 @@ void rk::VertexBuffer::destroy() const {
         return;
 
     for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+        if (m_indicesUpdateType == UpdateType::SOMETIMES) {
+
+        }
         if (m_indicesUpdateType == UpdateType::OFTEN)
             vkUnmapMemory(vulkanApp::getLogicalDevice(), m_indicesInfo[i].memory);
 
@@ -80,6 +83,7 @@ void rk::VertexBuffer::update(u32 size, const void* data) {
 
     update(m_verticesInfo[vulkanApp::getImageIndex()], m_verticesUpdateType, size, data);
 }
+
 void rk::VertexBuffer::updateIndices(u32 size, const u32* data) {
     assert(size <= m_indicesBufferSize);
 
@@ -105,24 +109,32 @@ void rk::VertexBuffer::update(BufferInfo& bufferInfo, UpdateType updateType, u32
     if (updateType == UpdateType::OFTEN) {
         std::memcpy(bufferInfo.mappedMemory, data, size);
     }
+    else if (updateType == UpdateType::SOMETIMES) {
+        // upload data to staging buffer
+        std::memcpy(bufferInfo.mappedMemory, data, size);
+
+        // copy staging buffer to vram buffer
+        utl::copyBuffer(bufferInfo.stagingBuffer, bufferInfo.buffer, size);
+    }
     else assert(false && "buffer can not be updated, because it is ONE_TIME");
 }
 
-void rk::VertexBuffer::createSendBuffer(u32 size, const void* data, BufferInfo& bufferInfo, UpdateType updateType, BufferUsage usage) {
+void rk::VertexBuffer::createOrSendBuffer(u32 size, const void* data, BufferInfo& bufferInfo, UpdateType updateType, BufferUsage usage) {
     auto logicalDevice = rk::vulkanApp::getLogicalDevice();
 
     // upload data to vram
     if (updateType == UpdateType::ONE_TIME) {
         assert(data != nullptr);
 
-        // create staging buffer
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingMemory;
+
+        // create staging buffer
         utl::createBuffer(size, stagingBuffer, stagingMemory, BufferUsage::TRANSFER_SRC,
             MemoryType::HOST_VISIBLE | MemoryType::HOST_COHERENT);
 
         // upload data
-        utl::copyDataToStagingBuffer(size, stagingMemory, data);
+        utl::copyDataToStagingBuffer(size, stagingMemory, data, false);
 
         // create buffer in VRAM
         utl::createBuffer(size, bufferInfo.buffer, bufferInfo.memory,
@@ -133,6 +145,18 @@ void rk::VertexBuffer::createSendBuffer(u32 size, const void* data, BufferInfo& 
 
         vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
         vkFreeMemory(logicalDevice, stagingMemory, nullptr);
+    }
+    else if (updateType == UpdateType::SOMETIMES) {
+        // create staging buffer
+        utl::createBuffer(size, bufferInfo.stagingBuffer, bufferInfo.stagingMemory, BufferUsage::TRANSFER_SRC,
+            MemoryType::HOST_VISIBLE | MemoryType::HOST_COHERENT);
+
+        // upload data
+        bufferInfo.mappedMemory = utl::copyDataToStagingBuffer(size, bufferInfo.stagingMemory, data, false);
+
+        // create buffer in VRAM
+        utl::createBuffer(size, bufferInfo.buffer, bufferInfo.memory,
+            BufferUsage::TRANSFER_DST | usage, MemoryType::DEVICE_LOCAL);
     }
     else {
         utl::createBuffer(size, bufferInfo.buffer, bufferInfo.memory, usage,

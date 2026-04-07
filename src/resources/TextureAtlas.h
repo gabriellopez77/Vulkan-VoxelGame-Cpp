@@ -25,7 +25,7 @@ namespace resources {
 
     private:
         void insertImages(const std::string& filePath);
-        void addImage(const u8* data, const ImageRect& rect, std::string name);
+        void addImage(const u8* data, const ImageRect& rect, const std::string& name);
         void addImageData(const u8* data, const ImageRect& rect) const;
 
         std::vector<u8> m_atlasData;

@@ -43,7 +43,7 @@ namespace rk {
         }
 
         void AddAttributesObject(const AttributesObject& attributesObject);
-        void addDescriptorSet(const DescriptorSet& descriptorSets);
+        void addDescriptorSet(DescriptorSet* descriptorSet);
 
         CullMode cullMode = CullMode::BACK;
         bool enableBlending = false;
@@ -54,6 +54,8 @@ namespace rk {
         std::vector<VkDynamicState> dynamicStates;
         std::vector<VkVertexInputBindingDescription> bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
-        std::vector<VkDescriptorSetLayout> descriptorSets;
+        std::vector<VkDescriptorSetLayout> descriptorSetsLayout;
+
+        std::vector<DescriptorSet*> descriptorSets;
     };
 }

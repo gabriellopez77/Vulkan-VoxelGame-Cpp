@@ -14,24 +14,26 @@ namespace rk::utl {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(vulkanApp::getPhysicalDevice(), &memProperties);
 
-        for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
-            if (type & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & (u32)memoryType) == (u32)memoryType) {
+        for (u32 i = 0; i < memProperties.memoryTypeCount; i++)
+            if (type & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & (u32)memoryType) == (u32)memoryType)
                 return i;
-            }
-        }
 
         assert(false && "failed to find suitable memory type!");
 
         return UINT32_MAX;
     }
 
-    void copyDataToStagingBuffer(u64 size, VkDeviceMemory memoryType, const void* data) {
+    void* copyDataToStagingBuffer(u64 size, VkDeviceMemory memoryType, const void* data, bool keepMapped) {
         auto logicalDevice = vulkanApp::getLogicalDevice();
 
         void* dataPtr;
         vkMapMemory(logicalDevice, memoryType, 0, size, 0, &dataPtr);
         std::memcpy(dataPtr, data, size);
-        vkUnmapMemory(logicalDevice, memoryType);
+
+        if (!keepMapped)
+            vkUnmapMemory(logicalDevice, memoryType);
+
+        return keepMapped ? dataPtr : nullptr;
     }
 
     void createBuffer(u64 size, VkBuffer& buffer, VkDeviceMemory& memory, BufferUsage usage, MemoryType memoryType) {
