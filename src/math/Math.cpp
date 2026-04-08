@@ -10,4 +10,3 @@ namespace math {
 
     float tan(f32 value) { return std::tan(value); }
 }
-

@@ -1,8 +1,9 @@
 #include "Player.h"
 
-#include "../../Inputs.h"
+#include "Inputs.h"
 
-#include <glm/trigonometric.hpp>
+
+#include "math/math.h"
 
 void Player::start(Game* game) {
 
@@ -11,8 +12,8 @@ void Player::start(Game* game) {
 void Player::update(float dt) {
     Vec3 dir{};
 
-    float yaw = glm::radians(camera.getRotX());
-    Vec3 front = { glm::cos(yaw), 0.f, glm::sin(yaw) };
+    float yaw = math::radians(camera.getRotX());
+    Vec3 front = { math::cos(yaw), 0.f, math::sin(yaw) };
 
     if (inputs::isKeyDown(inputs::Keys::W)) dir += front;
     if (inputs::isKeyDown(inputs::Keys::A)) dir -= Vec3::cross(front, {0.f, 1.f, 0.f});

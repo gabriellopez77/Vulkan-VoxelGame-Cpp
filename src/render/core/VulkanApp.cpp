@@ -2,13 +2,12 @@
 
 #include <cassert>
 #include <unordered_set>
-#include <vector>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
-#include "Application.h"
-#include "../VulkanEnums.h"
+#include "Window.h"
+#include "SwapChain.h"
 
 
 namespace rk::vulkanApp {
@@ -21,10 +20,6 @@ namespace rk::vulkanApp {
     void createCommandBuffers();
     void createSyncObjects();
     void createDescriptorPool();
-
-    const Application* application = nullptr;
-
-    SwapChain swapChain;
 
     u32 lastFrame = 0;
     u32 currentFrame = 0;
@@ -73,21 +68,19 @@ namespace rk::vulkanApp {
     VkCommandPool getTransferCommandPool() { return transferCommandPool; }
 
 
-    void init(const Application* application) {
-        vulkanApp::application = application;
-
+    void init() {
         createInstance();
 
         VkSurfaceKHR surface;
-        if (glfwCreateWindowSurface(vkInstance, application->getWindow(), nullptr, &surface) != VK_SUCCESS)
+        if (glfwCreateWindowSurface(vkInstance, window::getGlfwWindow(), nullptr, &surface) != VK_SUCCESS)
             assert(false && "failed to create window surface!");
 
-        swapChain.setSurface(surface);
+        swapChain::setSurface(surface);
         pickPhysicalDevice();
         createLogicalDevice();
-        swapChain.create();
+        swapChain::create();
         createRenderPass();
-        swapChain.createFramebuffers();
+        swapChain::createFramebuffers();
         createCommandPool();
         createCommandBuffers();
         createSyncObjects();
@@ -102,20 +95,20 @@ namespace rk::vulkanApp {
     void clear() {
         vkDeviceWaitIdle(logicalDevice);
 
-        swapChain.clear();
+        swapChain::clear();
     }
 
     void resize() {
         int width, height;
-        glfwGetFramebufferSize(application->getWindow(), &width, &height);
+        glfwGetFramebufferSize(window::getGlfwWindow(), &width, &height);
 
         // avoid create a framebuffer with 0 as size
         while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(application->getWindow(), &width, &height);
+            glfwGetFramebufferSize(window::getGlfwWindow(), &width, &height);
             glfwWaitEvents();
         }
 
-        swapChain.recreate(inFlightFence[lastFrame], width, height);
+        swapChain::recreate(inFlightFence[lastFrame], width, height);
 
         for (auto& fence : imagesInFlight)
             fence = nullptr;
@@ -186,7 +179,7 @@ namespace rk::vulkanApp {
             auto indices = findQueueFamilies(device);
 
             // if extensions are supported, check if the swap chain is adequate
-            return indices.isComplete() && extensionsSupported && SwapChain::isAdequate(device, swapChain.getSurface());
+            return indices.isComplete() && extensionsSupported && swapChain::isAdequate(device, swapChain::getSurface());
         };
 
         // get physical devices count
@@ -264,7 +257,7 @@ namespace rk::vulkanApp {
         VkAttachmentDescription attachments[2] = {};
 
         // color
-        attachments[0].format = (VkFormat)swapChain.getImageFormat();
+        attachments[0].format = (VkFormat)swapChain::getImageFormat();
         attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
         attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -344,7 +337,7 @@ namespace rk::vulkanApp {
             // try to get present queue that not contains graphics bit
             if ((flags & VK_QUEUE_GRAPHICS_BIT) == 0) {
                 VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, swapChain.getSurface(), &presentSupport);
+                vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, swapChain::getSurface(), &presentSupport);
 
                 if (presentSupport) {
                     indices.present = i;
@@ -446,7 +439,7 @@ namespace rk::vulkanApp {
         vkWaitForFences(logicalDevice, 1, &inFlightFence[currentFrame], VK_TRUE, UINT64_MAX);
 
         // get next image from swapChain
-        currentImageIndex = swapChain.getOneImage(logicalDevice, imageAvailableSemaphore[currentFrame]);
+        currentImageIndex = swapChain::getOneImage(logicalDevice, imageAvailableSemaphore[currentFrame]);
 
         if (imagesInFlight[currentImageIndex] != nullptr)
             vkWaitForFences(logicalDevice, 1, &imagesInFlight[currentImageIndex], VK_TRUE, UINT64_MAX);
@@ -473,12 +466,12 @@ namespace rk::vulkanApp {
             { .depthStencil = {1.0f, 0} }
         };
 
-        VkExtent2D extent = { swapChain.getWidth(), swapChain.getHeight() };
+        VkExtent2D extent = { swapChain::getWidth(), swapChain::getHeight() };
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChain.getFramebuffer(currentImageIndex);
+        renderPassInfo.framebuffer = swapChain::getFramebuffer(currentImageIndex);
         renderPassInfo.renderArea.extent = extent;
         renderPassInfo.clearValueCount = std::size(clearValues);
         renderPassInfo.pClearValues = clearValues;
@@ -528,7 +521,7 @@ namespace rk::vulkanApp {
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = &signalSemaphore;
         presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = &swapChain.get();
+        presentInfo.pSwapchains = &swapChain::get();
         presentInfo.pImageIndices = &currentImageIndex;
 
         vkQueuePresentKHR(presentQueue, &presentInfo);

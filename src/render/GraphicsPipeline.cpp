@@ -19,6 +19,14 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
         m_usePushConstant = true;
     }
 
+    for (i32 i = 0; i < utl::FRAMES_COUNT; i++) {
+        const auto& descriptors = settings.descriptorSets;
+
+        for (i32 j = 0; j < descriptors.size(); j++) {
+            m_vkDescriptorSets[i].push_back(descriptors[j]->getVkDescriptor(i));
+        }
+    }
+
     m_descriptorSets = settings.descriptorSets;
 
     auto logicalDevice = vulkanApp::getLogicalDevice();
@@ -156,10 +164,10 @@ void rk::GraphicsPipeline::create(const PipelineSettings& settings) {
 void rk::GraphicsPipeline::bind(VkCommandBuffer command) {
     for (auto* descriptor : m_descriptorSets) {
         const auto& dynamicUbos = descriptor->getDynamicUboOffsets();
-
+    
         for (i32 i = 0; i < dynamicUbos.size(); i++)
             m_dynamicUboOffsets.push_back(dynamicUbos[i]);
-
+    
         descriptor->disableDynamicUboOffsets();
     }
 

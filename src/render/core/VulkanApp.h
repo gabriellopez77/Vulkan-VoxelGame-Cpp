@@ -2,11 +2,11 @@
 
 #include <optional>
 
-#include "SwapChain.h"
+#include "VulkanFwd.h"
+#include "Defs.h"
 
 
 // fwd
-class Application;
 struct VkPhysicalDeviceProperties;
 
 namespace rk::vulkanApp {
@@ -20,7 +20,7 @@ namespace rk::vulkanApp {
         }
     };
 
-    extern void init(const Application* application);
+    extern void init();
 
     extern void resize();
 
@@ -47,6 +47,4 @@ namespace rk::vulkanApp {
     extern VkCommandPool getTransferCommandPool();
 
     extern QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device = nullptr);
-
-    extern const Application* application;
 }

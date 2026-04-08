@@ -1,50 +1,28 @@
 #pragma once
 
-#include "Utils.h"
+#include "Defs.h"
+#include "VulkanFwd.h"
+#include "render/VulkanEnums.h"
 
 
-namespace rk {
-    // fwd
-    enum class Formats : i32;
+namespace rk::swapChain {
+    extern bool isAdequate(VkPhysicalDevice PhysicalDevice, VkSurfaceKHR surface);
 
-    class SwapChain {
-    public:
-        static bool isAdequate(VkPhysicalDevice PhysicalDevice, VkSurfaceKHR surface);
+    extern void create();
+    extern void clear();
+    extern void createFramebuffers();
+    extern void recreate(VkFence fence, i32 width, i32 height);
 
-        void create();
-        void clear() const;
-        void createFramebuffers();
-        void recreate(VkFence fence, i32 width, i32 height);
+    extern u32 getWidth();
+    extern u32 getHeight();
+    extern Extent2D getSize();
 
-        u32 getWidth() const { return m_screenSize.width; }
-        u32 getHeight() const { return m_screenSize.height; }
-        Extent2D getSize() const { return m_screenSize; }
+    extern VkFramebuffer getFramebuffer(u32 index);
+    extern Formats getImageFormat();
+    extern VkSurfaceKHR getSurface();
+    extern VkSwapchainKHR& get();
 
-        VkFramebuffer getFramebuffer(u32 index) const { return m_framebuffers[index]; }
-        Formats getImageFormat() const { return m_imagesFormat; }
-        VkSurfaceKHR getSurface() const { return m_surface; }
-        VkSwapchainKHR& get() { return m_swapChain; }
+    extern u32 getOneImage(VkDevice device, VkSemaphore semaphore);
 
-        u32 getOneImage(VkDevice device, VkSemaphore semaphore) const;
-
-        void setSurface(VkSurfaceKHR surface) { m_surface = surface; };
-
-
-    private:
-        void createImageViews();
-
-        Extent2D m_screenSize = {};
-        VkSurfaceKHR m_surface = nullptr;
-        VkSwapchainKHR m_swapChain = nullptr;
-        Formats m_imagesFormat = {};
-
-        // depth buffer
-        VkImage m_depthImage = nullptr;
-        VkDeviceMemory m_depthImageMemory = nullptr;
-        VkImageView m_depthImageView = nullptr;
-
-        VkImage m_images[utl::FRAMES_COUNT] = {};
-        VkImageView m_imageViews[utl::FRAMES_COUNT] = {};
-        VkFramebuffer m_framebuffers[utl::FRAMES_COUNT] = {};
-    };
+    extern void setSurface(VkSurfaceKHR surface);
 }

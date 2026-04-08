@@ -21,7 +21,7 @@ namespace rk {
         VkPipelineLayout getLayout() const { return m_pipelineLayout; }
 
     private:
-        std::vector<VkDescriptorSet> m_vkDescriptorSets[utl::FRAMES_COUNT];
+        std::array<std::vector<VkDescriptorSet>, 3> m_vkDescriptorSets;
         std::vector<DescriptorSet*> m_descriptorSets;
         std::vector<u32> m_dynamicUboOffsets;
 

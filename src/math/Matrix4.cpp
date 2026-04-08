@@ -1,8 +1,7 @@
 #include "Matrix4.h"
 
-#include "Math.h"
 #include "Vec3.h"
-#include <glm/gtc/matrix_transform.hpp>
+#include "math/Math.h"
 
 
 Matrix4 Matrix4::lookAt(const Vec3& eye, const Vec3& target, const Vec3& up) {

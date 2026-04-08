@@ -5,9 +5,8 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Application.h"
+#include "Window.h"
 #include "VulkanApp.h"
-#include "../VulkanEnums.h"
 
 #include "math/Math.h"
 
@@ -24,162 +23,164 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 SupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 
-bool rk::SwapChain::isAdequate(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
-    auto swapChainSupport = querySwapChainSupport(physicalDevice, surface);
-    return !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-}
+namespace rk::swapChain {
+    void createImageViews();
 
-void rk::SwapChain::create() {
-    auto logicalDevice = vulkanApp::getLogicalDevice();
-
-    auto swapChainSupport = querySwapChainSupport(vulkanApp::getPhysicalDevice(), m_surface);
-
-    // choose the best settings for our swap chain
-    auto surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-    auto presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    auto extent = chooseSwapExtent(swapChainSupport.capabilities);
-
-    assert(swapChainSupport.capabilities.minImageCount <= utl::FRAMES_COUNT && "swapChain images count not supported");
-
-
-    // create swap chain create info
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_surface;
-    createInfo.minImageCount = utl::FRAMES_COUNT;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    auto indices = vulkanApp::findQueueFamilies();
-    u32 queueFamilyIndices[] = { indices.graphics.value(), indices.present.value() };
-
-    if (indices.graphics != indices.present) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    }
-    else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;
-        createInfo.pQueueFamilyIndices = nullptr;
-    }
-
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = nullptr;
-
-    // create the swap chain
-    if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &m_swapChain) != VK_SUCCESS)
-        assert(false && "failed to create swap chain!");
-
-
-    // get swap chain images
-    u32 imageCount = utl::FRAMES_COUNT;
-    vkGetSwapchainImagesKHR(logicalDevice, m_swapChain, &imageCount, m_images);
-
-    m_imagesFormat = (Formats)surfaceFormat.format;
-    m_screenSize = { extent.width, extent.height };
-
-    createImageViews();
-
-    utl::createImage(extent.width, extent.height, m_depthImage, m_depthImageMemory, Formats::DEPTH_F32,
-        MemoryType::DEVICE_LOCAL, ImageUsage::DEPTH_STENCIL_ATTACHMENT);
-
-    m_depthImageView = utl::createImageView(m_depthImage, Formats::DEPTH_F32, VK_IMAGE_ASPECT_DEPTH_BIT);
-}
-
-void rk::SwapChain::createImageViews() {
-    for (size_t i = 0; i < utl::FRAMES_COUNT; i++)
-        m_imageViews[i] = utl::createImageView(m_images[i], m_imagesFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-}
-
-void rk::SwapChain::createFramebuffers() {
-    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
-        VkImageView attachments[] = { m_imageViews[i], m_depthImageView };
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = vulkanApp::getRenderPass();
-        framebufferInfo.attachmentCount = std::size(attachments);
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = m_screenSize.width;
-        framebufferInfo.height = m_screenSize.height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(vulkanApp::getLogicalDevice(), &framebufferInfo, nullptr, &m_framebuffers[i]))
-            assert(false && "failed to create framebuffer!");
-    }
-}
-
-SupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
-    SupportDetails details;
-
-    // get physical device surface capabilities
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
-
-    // get physical device surface formats count
-    u32 formatCount = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-
-    if (formatCount != 0) {
-        details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
-    }
-
-    // get physical device surface present modes count
-    u32 presentModeCount = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-
-    // get physical device surface present modes
-    if (presentModeCount != 0) {
-        details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
-    }
-
-    return details;
-}
-
-u32 rk::SwapChain::getOneImage(VkDevice device, VkSemaphore semaphore) const {
-    u32 imageIndex = 0;
-    auto result = vkAcquireNextImageKHR(device, m_swapChain, UINT64_MAX, semaphore, nullptr, &imageIndex);
-
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR)
-        assert(false && "failed to acquire swap chain image!");
-
-    return imageIndex;
-}
-
-void rk::SwapChain::clear() const {
-    auto logicalDevice = rk::vulkanApp::getLogicalDevice();
-
-    for (int i = 0; i < utl::FRAMES_COUNT; i++) {
-        vkDestroyFramebuffer(logicalDevice, m_framebuffers[i], nullptr);
-        vkDestroyImageView(logicalDevice, m_imageViews[i], nullptr);
-    }
+    Extent2D screenSize = {};
+    VkSurfaceKHR surface = nullptr;
+    VkSwapchainKHR vkSwapChain = nullptr;
+    Formats imagesFormat = {};
 
     // depth buffer
-    vkDestroyImageView(logicalDevice, m_depthImageView, nullptr);
-    vkDestroyImage(logicalDevice, m_depthImage, nullptr);
-    vkFreeMemory(logicalDevice, m_depthImageMemory, nullptr);
+    VkImage depthImage = nullptr;
+    VkDeviceMemory depthImageMemory = nullptr;
+    VkImageView depthImageView = nullptr;
 
-    vkDestroySwapchainKHR(logicalDevice, m_swapChain, nullptr);
-}
+    VkImage images[utl::FRAMES_COUNT] = {};
+    VkImageView imageViews[utl::FRAMES_COUNT] = {};
+    VkFramebuffer framebuffers[utl::FRAMES_COUNT] = {};
 
-void rk::SwapChain::recreate(VkFence fence, i32 width, i32 height) {
-    // wait for command is finished
-    vkWaitForFences(vulkanApp::getLogicalDevice(), 1, &fence, VK_TRUE, UINT64_MAX);
+    u32 getWidth() { return screenSize.width; }
+    u32 getHeight() { return screenSize.height; }
+    Extent2D getSize() { return screenSize; }
 
-    // destroy the old swapChain
-    clear();
+    VkFramebuffer getFramebuffer(u32 index) { return framebuffers[index]; }
+    Formats getImageFormat() { return imagesFormat; }
+    VkSurfaceKHR getSurface() { return surface; }
+    VkSwapchainKHR& get() { return vkSwapChain; }
 
-    // create a new swapChain
-    create();
-    createFramebuffers();
+    void setSurface(VkSurfaceKHR surface) { swapChain::surface = surface; };
+
+    bool isAdequate(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
+        auto swapChainSupport = querySwapChainSupport(physicalDevice, surface);
+        return !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+    }
+
+    void create() {
+        auto logicalDevice = vulkanApp::getLogicalDevice();
+
+        auto swapChainSupport = querySwapChainSupport(vulkanApp::getPhysicalDevice(), surface);
+
+        // choose the best settings for our swap chain
+        auto surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+        auto presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+        auto extent = chooseSwapExtent(swapChainSupport.capabilities);
+
+        assert(swapChainSupport.capabilities.minImageCount <= utl::FRAMES_COUNT && "swapChain images count not supported");
+
+
+        // create swap chain create info
+        VkSwapchainCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = surface;
+        createInfo.minImageCount = utl::FRAMES_COUNT;
+        createInfo.imageFormat = surfaceFormat.format;
+        createInfo.imageColorSpace = surfaceFormat.colorSpace;
+        createInfo.imageExtent = extent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        auto indices = vulkanApp::findQueueFamilies();
+        u32 queueFamilyIndices[] = { indices.graphics.value(), indices.present.value() };
+
+        if (indices.graphics != indices.present) {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+        else {
+            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            createInfo.queueFamilyIndexCount = 0;
+            createInfo.pQueueFamilyIndices = nullptr;
+        }
+
+        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = presentMode;
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = nullptr;
+
+        // create the swap chain
+        if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &vkSwapChain) != VK_SUCCESS)
+            assert(false && "failed to create swap chain!");
+
+
+        // get swap chain images
+        u32 imageCount = utl::FRAMES_COUNT;
+        vkGetSwapchainImagesKHR(logicalDevice, vkSwapChain, &imageCount, images);
+
+        imagesFormat = (Formats)surfaceFormat.format;
+        screenSize = { extent.width, extent.height };
+
+        createImageViews();
+
+        utl::createImage(extent.width, extent.height, depthImage, depthImageMemory, Formats::DEPTH_F32,
+            MemoryType::DEVICE_LOCAL, ImageUsage::DEPTH_STENCIL_ATTACHMENT);
+
+        depthImageView = utl::createImageView(depthImage, Formats::DEPTH_F32, VK_IMAGE_ASPECT_DEPTH_BIT);
+    }
+
+    void createImageViews() {
+        for (size_t i = 0; i < utl::FRAMES_COUNT; i++)
+            imageViews[i] = utl::createImageView(images[i], imagesFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+
+    void createFramebuffers() {
+        for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+            VkImageView attachments[] = { imageViews[i], depthImageView };
+
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = vulkanApp::getRenderPass();
+            framebufferInfo.attachmentCount = std::size(attachments);
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.width = screenSize.width;
+            framebufferInfo.height = screenSize.height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(vulkanApp::getLogicalDevice(), &framebufferInfo, nullptr, &framebuffers[i]))
+                assert(false && "failed to create framebuffer!");
+        }
+    }
+
+
+    void clear() {
+        auto logicalDevice = rk::vulkanApp::getLogicalDevice();
+
+        for (int i = 0; i < utl::FRAMES_COUNT; i++) {
+            vkDestroyFramebuffer(logicalDevice, framebuffers[i], nullptr);
+            vkDestroyImageView(logicalDevice, imageViews[i], nullptr);
+        }
+
+        // depth buffer
+        vkDestroyImageView(logicalDevice, depthImageView, nullptr);
+        vkDestroyImage(logicalDevice, depthImage, nullptr);
+        vkFreeMemory(logicalDevice, depthImageMemory, nullptr);
+
+        vkDestroySwapchainKHR(logicalDevice, vkSwapChain, nullptr);
+    }
+
+    void recreate(VkFence fence, i32 width, i32 height) {
+        // wait for command is finished
+        vkWaitForFences(vulkanApp::getLogicalDevice(), 1, &fence, VK_TRUE, UINT64_MAX);
+
+        // destroy the old swapChain
+        clear();
+
+        // create a new swapChain
+        create();
+        createFramebuffers();
+    }
+
+    u32 getOneImage(VkDevice device, VkSemaphore semaphore) {
+        u32 imageIndex = 0;
+        auto result = vkAcquireNextImageKHR(device, rk::swapChain::vkSwapChain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+
+        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR)
+            assert(false && "failed to acquire swap chain image!");
+
+        return imageIndex;
+    }
 }
 
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -211,7 +212,7 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
         return capabilities.currentExtent;
 
     int width, height;
-    rk::vulkanApp::application->getFrameBufferSize(&width, &height);
+    window::getFrameBufferSize(&width, &height);
 
     VkExtent2D actualExtent = { (u32)width, (u32)height };
 
@@ -220,4 +221,32 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     actualExtent.height = math::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
     return actualExtent;
+}
+
+SupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    SupportDetails details;
+
+    // get physical device surface capabilities
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+    // get physical device surface formats count
+    u32 formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+
+    if (formatCount != 0) {
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+    }
+
+    // get physical device surface present modes count
+    u32 presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+
+    // get physical device surface present modes
+    if (presentModeCount != 0) {
+        details.presentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
+    }
+
+    return details;
 }

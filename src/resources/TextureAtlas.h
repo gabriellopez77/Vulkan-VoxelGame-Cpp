@@ -33,4 +33,4 @@ namespace resources {
         i32 m_width = 0;
         i32 m_height = 0;
     };
-}
+};
