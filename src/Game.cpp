@@ -55,6 +55,7 @@ namespace game {
         resources::startTextures();
         resources::startDescriptorSets();
 
+        std::cout << "AAAAAAAAA\n";
         ui::screenManager::start();
 
         buffer1Index = attributesObject.createVertexBuffer(sizeof(vertices), 0, vertices, sizeof(VertexData), rk::VertexInputRate::Vertex, rk::UpdateType::OneTime);
