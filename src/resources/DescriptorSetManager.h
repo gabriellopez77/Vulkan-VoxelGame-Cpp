@@ -1,13 +1,15 @@
 #pragma once
 
+#include "Defs.h"
+
 
 // fwd
 namespace rk {
 	class DescriptorSet;
 }
 
-namespace resources::descriptorSetManager {
-	extern void start();
+namespace resources {
+	extern void startDescriptorSets();
 
-	extern rk::DescriptorSet* get(const char* name);
+	extern rk::DescriptorSet* getDescriptorSet(str name);
 }

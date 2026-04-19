@@ -4,13 +4,13 @@
 
 
 namespace inputs {
-    enum class MouseButton : int
+    enum class MouseButton : i32
 	{
 		Left = 0,
 		Right = 1,
 	};
 
-	enum class Keys : int
+	enum class Keys : i32
 	{
 		// keys
 		Space              = 32,
@@ -82,7 +82,7 @@ namespace inputs {
 		CapsLock           = 280,
 		ScrollLock         = 281,
 		NumLock            = 282,
-		Print_Screen       = 283,
+		Pri32_Screen       = 283,
 		Pause              = 284,
 		F1                 = 290,
 		F2                 = 291,
@@ -139,20 +139,37 @@ namespace inputs {
 		LAST_KEY		   = 348
 	};
 
-    extern void newFrame();
+	inline bool keys[(i32)Keys::LAST_KEY];
+	inline bool lastKeys[(i32)Keys::LAST_KEY];
 
-	extern Vec2 getMousePos();
-	extern Vec2 getMouseDelta();
+	inline Vec2 mousePos;
+	inline Vec2 lastMousePos;
 
-	extern void setMousePos(Vec2 pos);
+	inline Vec2 getMousePos() { return mousePos; }
+	inline Vec2 getMouseDelta() { return mousePos - lastMousePos; }
 
-    extern void setKeyState(int key, bool state);
-	extern bool isKeyDown(Keys key);
-	extern bool isKeyPressed(Keys key);
-	extern bool isKeyRelease(Keys key);
+	inline void setMousePos(Vec2 pos) {
+		lastMousePos = mousePos;
+		mousePos = pos;
+	}
 
-	extern void setMouseButtonState(int button, bool state);
-	extern bool isMouseButtonDown(MouseButton button);
-	extern bool isMouseButtonPressed(MouseButton button);
-	extern bool isMouseButtonRelease(MouseButton button);
+	inline void newFrame() {
+		inputs::setMousePos(mousePos);
+
+		for (i32 i = 0; i < (i32)Keys::LAST_KEY; i++) {
+			lastKeys[i] = false;
+			lastKeys[i] |= keys[i];
+		}
+	}
+
+
+	inline bool isKeyDown(Keys key) { return  keys[(i32)key] && lastKeys[(i32)key]; }
+	inline bool isKeyPressed(Keys key) { return  keys[(i32)key] && !lastKeys[(i32)key]; }
+	inline bool isKeyRelease(Keys key) { return !keys[(i32)key] && lastKeys[(i32)key]; }
+	inline void setKeyState(i32 key, bool state) { keys[key] = state; }
+
+	inline bool isMouseButtonDown(MouseButton button) { return  keys[(i32)button] && lastKeys[(i32)button]; }
+	inline bool isMouseButtonPressed(MouseButton button) { return  keys[(i32)button] && !lastKeys[(i32)button]; }
+	inline bool isMouseButtonRelease(MouseButton button) { return !keys[(i32)button] && lastKeys[(i32)button]; }
+	inline void setMouseButtonState(i32 button, bool state) { keys[button] = state; }
 }

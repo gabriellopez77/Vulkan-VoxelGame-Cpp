@@ -11,7 +11,7 @@ class Game;
 class Player {
 public:
     void start(Game* game);
-    void update(float dt);
+    void update(f32 dt);
 
     Camera camera;
 

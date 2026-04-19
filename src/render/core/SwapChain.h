@@ -2,7 +2,7 @@
 
 #include "Defs.h"
 #include "VulkanFwd.h"
-#include "render/VulkanEnums.h"
+#include "VulkanEnums.h"
 
 
 namespace rk::swapChain {

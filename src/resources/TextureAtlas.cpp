@@ -122,7 +122,7 @@ void resources::TextureAtlas::insertImages(const std::string& directory) {
     }
 
     // reserve texture
-    textures.reserve(textures.size() + filesPaths.size());
+    images.reserve(images.size() + filesPaths.size());
     imagesLocation.reserve(filesPaths.size());
     images.reserve(filesPaths.size());
 
@@ -191,7 +191,7 @@ void resources::TextureAtlas::addImage(const u8* data, const ImageRect& rect, co
         rect.height / (f32)rect.height,
     };
 
-    textures.emplace_back(name, coords);
+    images.emplace_back(name, coords);
 }
 
 void resources::TextureAtlas::addImageData(const u8* data, const ImageRect& rect) const {

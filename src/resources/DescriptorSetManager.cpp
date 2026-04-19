@@ -4,26 +4,27 @@
 #include <string>
 #include <cassert>
 
-#include "render/DescriptorSet.h"
+#include "render/core/DescriptorSet.h"
+#include "TextureAtlas.h"
 #include "TextureManager.h"
 #include "math/Matrix4.h"
 
 
-namespace resources::descriptorSetManager {
+namespace resources {
 	std::unordered_map<std::string, rk::DescriptorSet*> descriptors;
 
 	rk::DescriptorSet* add(const std::string& name);
 
-	void start() {
-		auto tex = resources::textueManager::get("sla");
+	void startDescriptorSets() {
+		auto atlas = resources::getTextureAtlas("sla");
 
 		auto d1 = add("global");
-		d1->addSampler(tex, 1, rk::ShaderStage::FRAGMENT);
-		d1->addUbo(sizeof(Matrix4) * 4, 0, rk::ShaderStage::VERTEX);
+		d1->addSampler(&atlas->rawTexture, 1, rk::ShaderStage::Fragment);
+		d1->addUbo(sizeof(Matrix4) * 4, 0, rk::ShaderStage::Vertex);
 		d1->create();
 	}
 
-	rk::DescriptorSet* get(const char* name) {
+	rk::DescriptorSet* getDescriptorSet(str name) {
 		auto it = descriptors.find(name);
 
 		assert(it != descriptors.end());

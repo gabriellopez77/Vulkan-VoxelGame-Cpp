@@ -8,6 +8,7 @@
 
 #include "Window.h"
 #include "SwapChain.h"
+#include "Utils.h"
 
 
 namespace rk::vulkanApp {
@@ -72,8 +73,9 @@ namespace rk::vulkanApp {
         createInstance();
 
         VkSurfaceKHR surface;
-        if (glfwCreateWindowSurface(vkInstance, window::getGlfwWindow(), nullptr, &surface) != VK_SUCCESS)
+        if (glfwCreateWindowSurface(vkInstance, window::getGlfwWindow(), nullptr, &surface) != VK_SUCCESS) {
             assert(false && "failed to create window surface!");
+        }
 
         swapChain::setSurface(surface);
         pickPhysicalDevice();
@@ -141,7 +143,7 @@ namespace rk::vulkanApp {
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
-        createInfo.enabledExtensionCount = (u32)requiredExtensions.size();
+        createInfo.enabledExtensionCount = static_cast<u32>(requiredExtensions.size());
         createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
         // validation layer
@@ -150,8 +152,9 @@ namespace rk::vulkanApp {
             createInfo.ppEnabledLayerNames = utl::validateLayerNames;
         }
 
-        if (vkCreateInstance(&createInfo, nullptr, &vkInstance) != VK_SUCCESS)
+        if (vkCreateInstance(&createInfo, nullptr, &vkInstance) != VK_SUCCESS) {
             assert(false && "Failed to create Vulkan instance!");
+        }
     }
 
     void pickPhysicalDevice() {
@@ -186,8 +189,9 @@ namespace rk::vulkanApp {
         u32 deviceCount = 0;
         vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
 
-        if (deviceCount == 0)
+        if (deviceCount == 0) {
             assert(false && "Failed to find GPUs with Vulkan support!");
+        }
 
         // get physical devices
         std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -201,8 +205,9 @@ namespace rk::vulkanApp {
             }
         }
 
-        if (physicalDevice == nullptr)
+        if (physicalDevice == nullptr) {
             assert(false && "Failed to find a suitable GPU!");
+        }
     }
 
     void createLogicalDevice() {
@@ -228,15 +233,16 @@ namespace rk::vulkanApp {
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.queueCreateInfoCount = (u32)queueCreateInfos.size();
+        createInfo.queueCreateInfoCount = static_cast<u32>(queueCreateInfos.size());
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.enabledLayerCount = 0;
         createInfo.enabledExtensionCount = std::size(utl::deviceExtensions);
         createInfo.ppEnabledExtensionNames = utl::deviceExtensions;
 
         // create the logical device
-        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice) != VK_SUCCESS)
+        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice) != VK_SUCCESS) {
             assert(false && "failed to create logical device!");
+        }
 
         // get graphics and present queues
         vkGetDeviceQueue(logicalDevice, indices.graphics.value(), 0, &graphicsQueue);
@@ -257,7 +263,7 @@ namespace rk::vulkanApp {
         VkAttachmentDescription attachments[2] = {};
 
         // color
-        attachments[0].format = (VkFormat)swapChain::getImageFormat();
+        attachments[0].format = static_cast<VkFormat>(swapChain::getImageFormat());
         attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
         attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -267,7 +273,7 @@ namespace rk::vulkanApp {
         attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
         // depth
-        attachments[1].format = (VkFormat)Formats::DEPTH_F32;
+        attachments[1].format = static_cast<VkFormat>(Formats::DepthF32);
         attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
         attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -300,8 +306,9 @@ namespace rk::vulkanApp {
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        if (vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+        if (vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
             assert(false && "failed to create render pass!");
+        }
     }
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -373,16 +380,18 @@ namespace rk::vulkanApp {
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = queueFamilyIndices.transfer.value();
 
-        if (vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &transferCommandPool) != VK_SUCCESS)
+        if (vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &transferCommandPool) != VK_SUCCESS) {
             assert(false && "failed to create command pool!");
+        }
 
         VkCommandPoolCreateInfo poolInfo2{};
         poolInfo2.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo2.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo2.queueFamilyIndex = queueFamilyIndices.graphics.value();
 
-        if (vkCreateCommandPool(logicalDevice, &poolInfo2, nullptr, &graphicsCommandPool) != VK_SUCCESS)
+        if (vkCreateCommandPool(logicalDevice, &poolInfo2, nullptr, &graphicsCommandPool) != VK_SUCCESS) {
             assert(false && "failed to create command pool!");
+        }
     }
 
     void createCommandBuffers() {
@@ -393,8 +402,9 @@ namespace rk::vulkanApp {
         allocInfo.commandBufferCount = utl::FRAMES_COUNT;
 
 
-        if (vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers) != VK_SUCCESS)
+        if (vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers) != VK_SUCCESS) {
             assert(false && "failed to allocate command buffers!");
+        }
     }
 
     void createSyncObjects() {
@@ -430,8 +440,9 @@ namespace rk::vulkanApp {
         poolInfo.pPoolSizes = poolSizes;
         poolInfo.maxSets = maxSetsInDescriptors;
 
-        if (vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+        if (vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             assert(false && "failed to create descriptor pool!");
+        }
     }
 
     void beginFrame() {
@@ -458,8 +469,9 @@ namespace rk::vulkanApp {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
             assert(false && "failed to begin recording command buffer!");
+        }
 
         const VkClearValue clearValues[2] = {
             { .color = {{0.0f, 0.0f, 0.0f, 1.0f}} },
@@ -483,8 +495,8 @@ namespace rk::vulkanApp {
         scissor.extent = extent;
 
         VkViewport viewport{};
-        viewport.width = extent.width;
-        viewport.height = extent.height;
+        viewport.width = static_cast<f32>(extent.width);
+        viewport.height = static_cast<f32>(extent.height);
         viewport.maxDepth = 1.0f;
 
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
@@ -495,8 +507,9 @@ namespace rk::vulkanApp {
         auto commandBuffer = commandBuffers[currentFrame];
 
         vkCmdEndRenderPass(commandBuffer);
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
             assert(false && "failed to record command buffer!");
+        }
 
 
         const auto signalSemaphore = renderFinishedSemaphore[currentFrame];
@@ -512,8 +525,9 @@ namespace rk::vulkanApp {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &signalSemaphore;
 
-        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence[currentFrame]) != VK_SUCCESS)
+        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence[currentFrame]) != VK_SUCCESS) {
             assert(false && "failed to submit draw command buffer!");
+        }
 
 
         VkPresentInfoKHR presentInfo{};

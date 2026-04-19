@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "CMakeFiles\\LearnVulkan.dir\\src\\render\\core\\Utils.cpp.obj",
+            "outputs": [
+                "C:\\Users\\Mark\\Desktop\\c++\\meus projetos\\learn vulkan\\out\\build\\x64-Debug\\vc140.pdb",
+                "CMakeFiles\\LearnVulkan.dir\\src\\render\\core\\Utils.cpp.obj.ddi"
+            ],
+            "requires": []
+        }
+    ]
+}

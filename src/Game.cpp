@@ -3,15 +3,16 @@
 #include <iostream>
 
 #include "render/SpritesRenderer.h"
-#include "render/PipelineSettings.h"
+#include "render/core/PipelineSettings.h"
 #include "render/core/VulkanApp.h"
-#include "render/DescriptorSet.h"
+#include "render/core/DescriptorSet.h"
 
 #include "world/player/Player.h"
 
 #include "resources/TextureManager.h"
 #include "resources/DescriptorSetManager.h"
 #include "math/Vec2.h"
+#include "ui/ScreenManager.h"
 
 
 struct VertexData {
@@ -45,46 +46,47 @@ rk::DescriptorSet* globalDescriptor = nullptr;
 namespace game {
     Player player;
 
-    rk::SpritesRenderer spritesRenderer;
+    bool inWorld;
+
     rk::AttributesObject attributesObject;
     rk::GraphicsPipeline pipeline;
 
     void start() {
-        resources::textueManager::start();
-        resources::descriptorSetManager::start();
+        resources::startTextures();
+        resources::startDescriptorSets();
 
-        attributesObject.addVertexBuffer(sizeof(VertexData), rk::VertexInputRate::VERTEX, &buffer1Index)
-            .createVertices(sizeof(vertices), vertices, rk::UpdateType::ONE_TIME)
-            .createIndices(sizeof(indices), indices, rk::UpdateType::ONE_TIME);
-        attributesObject.setAttributes(0, rk::Formats::RG_F32, offsetof(VertexData, vertices));
-        attributesObject.setAttributes(1, rk::Formats::RG_F32, offsetof(VertexData, texCoords));
+        ui::screenManager::start();
+
+        buffer1Index = attributesObject.createVertexBuffer(sizeof(vertices), 0, vertices, sizeof(VertexData), rk::VertexInputRate::Vertex, rk::UpdateType::OneTime);
+        attributesObject.createIndexBuffer(sizeof(indices), indices, rk::UpdateType::OneTime);
+        attributesObject.setAttributes(0, rk::Formats::RgF32, offsetof(VertexData, vertices));
+        attributesObject.setAttributes(1, rk::Formats::RgF32, offsetof(VertexData, texCoords));
 
 
-        attributesObject.addVertexBuffer(sizeof(InstanceData), rk::VertexInputRate::INSTANCE, &buffer2Index)
-           .createVertices(sizeof(InstanceData) * INSTANCE_COUNT, nullptr, rk::UpdateType::OFTEN);
-        attributesObject.setAttributes(2, rk::Formats::RGB_F32, offsetof(InstanceData, position));
-        attributesObject.setAttributes(3, rk::Formats::RGB_F32, offsetof(InstanceData, size));
+        buffer2Index = attributesObject.createVertexBuffer(sizeof(InstanceData) * INSTANCE_COUNT, 0, nullptr, sizeof(InstanceData), rk::VertexInputRate::Instance, rk::UpdateType::Often);
+        attributesObject.setAttributes(2, rk::Formats::RgbF32, offsetof(InstanceData, position));
+        attributesObject.setAttributes(3, rk::Formats::RgbF32, offsetof(InstanceData, size));
     
-        globalDescriptor = resources::descriptorSetManager::get("global");
+        globalDescriptor = resources::getDescriptorSet("global");
 
         rk::PipelineSettings pipelineSettings;
-        pipelineSettings.cullMode = rk::CullMode::DISABLE;
+        pipelineSettings.cullMode = rk::CullMode::Disable;
         pipelineSettings.enableBlending = true;
         pipelineSettings.enableDepthTest = true;
 
         pipelineSettings.setShaders(SHADERS_FOLDER"/vertex.vspv", SHADERS_FOLDER"/fragment.fspv");
-        pipelineSettings.addDynamicState({ rk::DynamicState::VIEWPORT, rk::DynamicState::SCISSOR });
+        pipelineSettings.addDynamicState({ rk::DynamicState::Viewport, rk::DynamicState::Scissor });
         pipelineSettings.AddAttributesObject(attributesObject);
         pipelineSettings.addDescriptorSet(globalDescriptor);
 
 
         pipeline.create(pipelineSettings);
-
-        spritesRenderer.start();
     }
 
     void update(f32 dt) {
         player.update(dt);
+
+        ui::screenManager::updateUi(dt);     
     }
 
     void render() {
@@ -106,23 +108,19 @@ namespace game {
             { {0, 0, 1}, {10.f, 40.f, 10.f} },
         };
 
-        attributesObject.update(buffer2Index, sizeof(instanceData), instanceData);
+        attributesObject.updateVertexBuffer(buffer2Index, sizeof(instanceData), instanceData);
 
         vkCmdDrawIndexed(command, std::size(indices), INSTANCE_COUNT, 0, 0, 0);
 
-        rk::SpriteVertices teste{};
-        teste.size = { 100, 100 };
-        teste.color = { 0, 255, 0, 255 };
-    
-        spritesRenderer.buffer.getEnd() = teste;
-
-        spritesRenderer.draw();
+        ui::screenManager::drawUi();
     }
 
     void resize(i32 width, i32 height) {
-        player.camera.resize((f32)width, (f32)height);
+        player.camera.resize(static_cast<f32>(width), static_cast<f32>(height));
 
-        auto orthographic = Matrix4::orthographic(0.f, (f32)width, 0.f, (f32)height, -1.f, 1.f);
-        resources::descriptorSetManager::get("global")->updateUboAll(0, 192, 64, &orthographic);
+        auto orthographic = Matrix4::orthographic(0.f, static_cast<f32>(width), 0.f, static_cast<f32>(height), -1.f, 1.f);
+        resources::getDescriptorSet("global")->updateUboAll(0, 192, 64, &orthographic);
+
+        ui::screenManager::resize(width, height);
     }
 }

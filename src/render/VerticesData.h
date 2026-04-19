@@ -23,6 +23,6 @@ namespace rk {
         Vec2 size;
         Vec4 uv;
         Color4b color;
-        u8 depth;
+        u8 depth = 0;
     };
 }

@@ -2,7 +2,7 @@
 
 #include "Defs.h"
 #include "VulkanFwd.h"
-#include "render/VulkanEnums.h"
+#include "VulkanEnums.h"
 
 #define SHADERS_FOLDER PROJECT_ROOT_PATH"/assets/shaders/compiled"
 

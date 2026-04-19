@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "render/core/RawTexture.h"
 #include "math/Vec4.h"
 
 
@@ -21,7 +22,9 @@ namespace resources {
         i32 width() const { return m_width; }
         i32 height() const { return m_height; }
 
-        std::vector<std::pair<std::string, Vec4>> textures;
+        std::vector<std::pair<std::string, Vec4>> images;
+
+        rk::RawTexture rawTexture;
 
     private:
         void insertImages(const std::string& filePath);

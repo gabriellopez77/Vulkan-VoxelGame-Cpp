@@ -76,7 +76,7 @@ namespace window {
 
 
             // calculate delta time
-            f32 time = (f32)glfwGetTime();
+            f32 time = static_cast<f32>(glfwGetTime());
             DeltaTime = time - lastFrame;
             lastFrame = time;
             Time = time;
@@ -94,7 +94,7 @@ namespace window {
     }
 
     void setCursorMode(CursorMode mode) {
-        glfwSetInputMode(glfwWindow, GLFW_CURSOR, (int)mode);
+        glfwSetInputMode(glfwWindow, GLFW_CURSOR, static_cast<i32>(mode));
     }
 
     void getFrameBufferSize(i32* width, i32* height) {
@@ -125,5 +125,5 @@ void mouseButtonCallback(GLFWwindow *window, i32 button, i32 action, i32 mods) {
 }
 
 void cursorPosCallback(GLFWwindow* window, f64 x, f64 y) {
-    inputs::setMousePos({ (f32)x, (f32)y });
+    inputs::setMousePos({ static_cast<f32>(x), static_cast<f32>(y) });
 }

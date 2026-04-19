@@ -7,6 +7,7 @@
 
 #include "Window.h"
 #include "VulkanApp.h"
+#include "Utils.h"
 
 #include "math/Math.h"
 
@@ -101,8 +102,9 @@ namespace rk::swapChain {
         createInfo.oldSwapchain = nullptr;
 
         // create the swap chain
-        if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &vkSwapChain) != VK_SUCCESS)
+        if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &vkSwapChain) != VK_SUCCESS) {
             assert(false && "failed to create swap chain!");
+        }
 
 
         // get swap chain images
@@ -114,10 +116,10 @@ namespace rk::swapChain {
 
         createImageViews();
 
-        utl::createImage(extent.width, extent.height, depthImage, depthImageMemory, Formats::DEPTH_F32,
-            MemoryType::DEVICE_LOCAL, ImageUsage::DEPTH_STENCIL_ATTACHMENT);
+        utl::createImage(extent.width, extent.height, depthImage, depthImageMemory, Formats::DepthF32,
+            MemoryType::DeviceLocal, ImageUsage::DepthStencilAttachment);
 
-        depthImageView = utl::createImageView(depthImage, Formats::DEPTH_F32, VK_IMAGE_ASPECT_DEPTH_BIT);
+        depthImageView = utl::createImageView(depthImage, Formats::DepthF32, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     void createImageViews() {
@@ -138,8 +140,9 @@ namespace rk::swapChain {
             framebufferInfo.height = screenSize.height;
             framebufferInfo.layers = 1;
 
-            if (vkCreateFramebuffer(vulkanApp::getLogicalDevice(), &framebufferInfo, nullptr, &framebuffers[i]))
+            if (vkCreateFramebuffer(vulkanApp::getLogicalDevice(), &framebufferInfo, nullptr, &framebuffers[i])) {
                 assert(false && "failed to create framebuffer!");
+            }
         }
     }
 
@@ -176,8 +179,9 @@ namespace rk::swapChain {
         u32 imageIndex = 0;
         auto result = vkAcquireNextImageKHR(device, rk::swapChain::vkSwapChain, UINT64_MAX, semaphore, nullptr, &imageIndex);
 
-        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR)
+        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR && result != VK_ERROR_OUT_OF_DATE_KHR) {
             assert(false && "failed to acquire swap chain image!");
+        }
 
         return imageIndex;
     }

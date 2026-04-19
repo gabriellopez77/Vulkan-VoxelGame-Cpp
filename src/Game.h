@@ -8,4 +8,6 @@ namespace game {
     extern void update(f32 dt);
     extern void render();
     extern void resize(i32 width, i32 height);
+
+    extern bool inWorld;
 }

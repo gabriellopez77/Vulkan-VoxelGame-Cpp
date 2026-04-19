@@ -1,7 +1,7 @@
 #pragma once
 
-#include "render/GraphicsPipeline.h"
-#include "render/AttributesObject.h"
+#include "render/core/GraphicsPipeline.h"
+#include "render/core/AttributesObject.h"
 #include "resources/ArrayBuffer.h"
 #include "VerticesData.h"
 

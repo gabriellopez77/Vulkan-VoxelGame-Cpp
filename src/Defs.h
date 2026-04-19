@@ -1,5 +1,6 @@
 #pragma once
 
+
 using i8 = char;
 using i16 = short;
 using i32 = int;
@@ -12,3 +13,5 @@ using u64 = unsigned long long;
 
 using f32 = float;
 using f64 = double;
+
+using str = const char*;

@@ -1,33 +1,31 @@
 #include "SpritesRenderer.h"
 
-#include "PipelineSettings.h"
-#include "VulkanEnums.h"
-#include "render/core/VulkanApp.h"
+#include "core/PipelineSettings.h"
+#include "core/VulkanEnums.h"
+#include "core/VulkanApp.h"
 #include "resources/DescriptorSetManager.h"
 
 
 void rk::SpritesRenderer::start() {
-    attributesObject.addVertexBuffer(sizeof(f32) * 4, VertexInputRate::VERTEX, nullptr)
-        .createVertices(sizeof(SPRITES_VERTICES), SPRITES_VERTICES, UpdateType::ONE_TIME)
-        .createIndices(sizeof(SPRITES_INDICES), SPRITES_INDICES, UpdateType::ONE_TIME);
-    attributesObject.setAttributes(0, Formats::RGBA_F32, 0);
+    attributesObject.createVertexBuffer(sizeof(SPRITES_VERTICES), 0, SPRITES_VERTICES, sizeof(f32) * 4, VertexInputRate::Vertex, UpdateType::OneTime);
+    attributesObject.createIndexBuffer(sizeof(SPRITES_INDICES), SPRITES_INDICES, UpdateType::OneTime);
+    attributesObject.setAttributes(0, Formats::RgbaF32, 0);
 
-    attributesObject.addVertexBuffer(sizeof(SpriteVertices), VertexInputRate::INSTANCE, nullptr)
-        .createVertices(sizeof(SpriteVertices) * MAX_SPRITES_COUNT, nullptr, UpdateType::OFTEN);
-    attributesObject.setAttributes(1, Formats::RG_F32, offsetof(SpriteVertices, position));
-    attributesObject.setAttributes(2, Formats::RG_F32, offsetof(SpriteVertices, size));
-    attributesObject.setAttributes(3, Formats::RGBA_F32, offsetof(SpriteVertices, uv));
-    attributesObject.setAttributes(4, Formats::RGBA_U8, offsetof(SpriteVertices, color));
-    attributesObject.setAttributes(5, Formats::R_F32, offsetof(SpriteVertices, depth));
+    attributesObject.createVertexBuffer(sizeof(SpriteVertices) * MAX_SPRITES_COUNT, 0, nullptr, sizeof(SpriteVertices), VertexInputRate::Instance, UpdateType::Often);
+    attributesObject.setAttributes(1, Formats::RgF32, offsetof(SpriteVertices, position));
+    attributesObject.setAttributes(2, Formats::RgF32, offsetof(SpriteVertices, size));
+    attributesObject.setAttributes(3, Formats::RgbaF32, offsetof(SpriteVertices, uv));
+    attributesObject.setAttributes(4, Formats::RgbaU8, offsetof(SpriteVertices, color));
+    attributesObject.setAttributes(5, Formats::RF32, offsetof(SpriteVertices, depth));
 
     PipelineSettings pipelineSettings;
-    pipelineSettings.cullMode = CullMode::DISABLE;
+    pipelineSettings.cullMode = CullMode::Disable;
     pipelineSettings.enableBlending = true;
     pipelineSettings.enableDepthTest = false;
     pipelineSettings.setShaders(SHADERS_FOLDER"/sprites.vspv", SHADERS_FOLDER"/sprites.fspv");
-    pipelineSettings.addDynamicState({ DynamicState::VIEWPORT, DynamicState::SCISSOR });
+    pipelineSettings.addDynamicState({ DynamicState::Viewport, DynamicState::Scissor });
     pipelineSettings.AddAttributesObject(attributesObject);
-    pipelineSettings.addDescriptorSet(resources::descriptorSetManager::get("global"));
+    pipelineSettings.addDescriptorSet(resources::getDescriptorSet("global"));
 
     pipeline.create(pipelineSettings);
 }
@@ -42,7 +40,7 @@ void rk::SpritesRenderer::draw() {
 
     pipeline.bind(command);
     attributesObject.bind(command);
-    attributesObject.update(1, buffer.sizeInBytes(), buffer.data());
+    attributesObject.updateVertexBuffer(1, buffer.sizeInBytes(), buffer.data());
 
     vkCmdDrawIndexed(command, std::size(rk::SPRITES_INDICES), instancesCount, 0, 0, 0);
 
