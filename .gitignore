@@ -1,5 +1,4 @@
-.out
-.Out
-.idea
-.vscode
-.vs
+/out
+/.idea
+/.vscode
+/.vs
